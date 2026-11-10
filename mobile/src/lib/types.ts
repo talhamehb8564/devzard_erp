@@ -75,6 +75,7 @@ export interface SchoolBrand {
   primaryColor?: string;
   accentColor?: string;
   secondaryColor?: string;
+  uiFont?: string;
   tagline?: string;
 }
 
@@ -261,6 +262,7 @@ export interface SchoolSettings {
   primaryColor?: string;
   accentColor?: string;
   secondaryColor?: string;
+  uiFont?: string;
 }
 
 export const ROLE_LABEL: Record<Role, string> = {

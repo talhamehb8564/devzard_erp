@@ -391,14 +391,16 @@ public class HomeworkService {
         for (HomeworkSubmission s : submissionRepository.findByTenantIdAndHomeworkIdIn(tenantId, hwIds)) {
             submitted.merge(s.getHomeworkId(), 1, Integer::sum);
         }
+        Map<String, Long> rosterByScope = new HashMap<>();
         for (int i = 0; i < rows.size(); i++) {
             Map<String, Object> m = rows.get(i);
             Homework h = list.get(i);
             int n = submitted.getOrDefault(h.getId(), 0);
             long roster = 0;
             if (h.getClassId() != null && h.getSectionId() != null) {
-                roster = studentRepository.countInScope(
-                        tenantId, h.getClassId(), h.getSectionId(), null, StudentStatus.ACTIVE);
+                String key = h.getClassId() + ":" + h.getSectionId();
+                roster = rosterByScope.computeIfAbsent(key, k -> studentRepository.countInScope(
+                        tenantId, h.getClassId(), h.getSectionId(), null, StudentStatus.ACTIVE));
             }
             m.put("submittedCount", n);
             m.put("rosterCount", roster);

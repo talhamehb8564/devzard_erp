@@ -5,25 +5,32 @@ import { useToast } from "../lib/toast";
 
 const FormBusy = createContext<{ busy: boolean; label: string }>({ busy: false, label: "Working…" });
 
+function sanitizePublicError(message?: string) {
+  const raw = (message || "").trim();
+  if (!raw) return "";
+  if (/neon|jdbc|postgres|hikari|sqlstate|hibernate|stacktrace|exception at |\/\/[a-z0-9.-]+:\d+/i.test(raw)) {
+    return "";
+  }
+  return raw;
+}
+
 export function friendlyMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (error instanceof ApiError) {
-    if (error.status === 0) return error.message || "Cannot reach the ERP server. Start the Spring Boot API on port 8080.";
+    if (error.status === 0) return sanitizePublicError(error.message) || "Cannot reach the ERP server. Check your connection and try again.";
     if (error.status === 401) {
       const msg = (error.message || "").trim();
       if (msg && !/^(request failed|unauthorized|authentication required)$/i.test(msg)) return msg;
       return "Your session expired. Please sign in again.";
     }
     if (error.status === 503 || error.errorCode === "API_UNAVAILABLE") {
-      return error.message || "Cannot reach the ERP server. Start the Spring Boot API on port 8080.";
+      return sanitizePublicError(error.message) || "Cannot reach the ERP server. Check your connection and try again.";
     }
-    if (error.status >= 500) return error.message && !/exception|sql|hibernate|stack/i.test(error.message)
-      ? error.message
-      : "The server could not complete this request. Please try again.";
+    if (error.status >= 500) return sanitizePublicError(error.message) || "The server could not complete this request. Please try again.";
     if (error.fields?.length) {
       const parts = error.fields.map((f) => f.message).filter(Boolean);
       if (parts.length) return parts.join(" ");
     }
-    if (error.message && !/exception|sql|hibernate|stack/i.test(error.message)) return error.message;
+    if (sanitizePublicError(error.message)) return sanitizePublicError(error.message);
     if (error.status === 403) return "You do not have permission to do that.";
     if (error.status === 404) return "The requested record was not found.";
     return fallback;
@@ -254,6 +261,8 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = [], enabled 
   const dataRef = useRef<T | null>(null);
   fnRef.current = fn;
   dataRef.current = data;
+  const depKey = JSON.stringify(deps);
+  const prevKey = useRef(depKey);
   const reload = useCallback(async () => {
     if (!enabled) return;
     const blocking = dataRef.current == null;
@@ -275,9 +284,13 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = [], enabled 
       return;
     }
     let cancelled = false;
-    dataRef.current = null;
-    setData(null);
-    setLoading(true);
+    if (prevKey.current !== depKey) {
+      prevKey.current = depKey;
+      dataRef.current = null;
+      setData(null);
+    }
+    const blocking = dataRef.current == null;
+    if (blocking) setLoading(true);
     setError(null);
     void (async () => {
       try {

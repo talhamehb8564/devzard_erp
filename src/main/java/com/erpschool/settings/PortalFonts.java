@@ -9,16 +9,30 @@ public final class PortalFonts {
 
     public static final List<String> OPTIONS = List.of(
             "Outfit",
-            "Fraunces",
+            "Inter",
+            "Roboto",
+            "Open Sans",
+            "Lato",
+            "Poppins",
+            "Nunito",
+            "Montserrat",
             "Source Sans 3",
-            "Literata",
             "Atkinson Hyperlegible",
+            "Times New Roman",
+            "Georgia",
+            "Arial",
+            "Fraunces",
+            "Literata",
             "Merriweather"
     );
 
     private static final Set<String> ALLOWED = Set.copyOf(OPTIONS);
 
     private PortalFonts() {
+    }
+
+    public static boolean allowed(String raw) {
+        return raw != null && ALLOWED.contains(raw.trim());
     }
 
     public static String sanitize(String raw) {

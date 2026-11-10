@@ -56,7 +56,8 @@ export default function SchoolApp() {
     const accent = tenant?.accentColor || school?.accentColor;
     const secondary = tenant?.secondaryColor || school?.secondaryColor;
     if (primary || accent || secondary) applyBrand(primary, accent, secondary);
-    applyFont(tenant?.uiFont || school?.uiFont);
+    const font = tenant?.uiFont || school?.uiFont;
+    if (font) applyFont(font);
     const title = tenant?.name?.trim() || school?.name;
     if (title) document.title = title;
   }, [tenant?.primaryColor, tenant?.accentColor, tenant?.secondaryColor, tenant?.uiFont, tenant?.name, school?.primaryColor, school?.accentColor, school?.secondaryColor, school?.uiFont, school?.name]);

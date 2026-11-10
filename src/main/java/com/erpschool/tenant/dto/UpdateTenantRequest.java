@@ -46,6 +46,12 @@ public class UpdateTenantRequest {
     @Size(max = 16)
     private String accentColor;
 
+    @Size(max = 16)
+    private String secondaryColor;
+
+    @Size(max = 40)
+    private String uiFont;
+
     @Size(max = 200)
     private String website;
 

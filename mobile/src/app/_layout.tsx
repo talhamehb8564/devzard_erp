@@ -19,7 +19,7 @@ function SplashHider() {
 }
 
 function ThemedStack() {
-  const { scheme, colors } = useAppearance();
+  const { scheme, colors, fontFamily } = useAppearance();
   return (
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
@@ -29,6 +29,7 @@ function ThemedStack() {
         screenOptions={{
           headerStyle: { backgroundColor: colors.bg },
           headerTintColor: colors.ink,
+          headerTitleStyle: fontFamily ? { fontFamily } : undefined,
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.bg },
           animation: "fade",

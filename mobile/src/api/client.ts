@@ -25,7 +25,7 @@ let authEpoch = 0;
 const getInflight = new Map<string, Promise<unknown>>();
 const getTtlCache = new Map<string, { exp: number; data: unknown }>();
 const GET_TTL_MS = 45_000;
-const GET_TIMEOUT_MS = 12_000;
+const GET_TIMEOUT_MS = 20_000;
 const REQUEST_TIMEOUT_MS = 45_000;
 
 const CACHEABLE_GET =
@@ -145,11 +145,16 @@ async function send<T>(path: string, init: RequestInit = {}, retry = true): Prom
   }
   const startedEpoch = getAuthEpoch();
   const method = (init.method || "GET").toUpperCase();
-  const timeoutMs =
-    path.includes("/auth/login") || path.includes("/auth/refresh") || method === "GET" || method === "HEAD"
-      ? GET_TIMEOUT_MS
-      : REQUEST_TIMEOUT_MS;
-  const res = await fetchWithTimeout(apiUrl(path), { ...init, headers }, timeoutMs);
+  const timeoutMs = method === "GET" || method === "HEAD" ? GET_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(apiUrl(path), { ...init, headers }, timeoutMs);
+  } catch (e) {
+    if (retry && method === "GET" && e instanceof ApiError && e.status === 0) {
+      return send<T>(path, init, false);
+    }
+    throw e;
+  }
   if (
     res.status === 401 &&
     retry &&

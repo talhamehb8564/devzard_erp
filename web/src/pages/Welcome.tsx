@@ -81,7 +81,7 @@ export default function Welcome({ preview = false }: { preview?: boolean }) {
       setDraft({ school, campuses });
       setDraftCampusId(campuses[0]?.id || null);
       applyBrand(school?.primaryColor, school?.accentColor, school?.secondaryColor);
-      applyFont(school?.uiFont);
+      if (school?.uiFont) applyFont(school.uiFont);
       if (school?.name) document.title = `${school.name} (preview)`;
     }).catch((e) => {
       if (!live) return;

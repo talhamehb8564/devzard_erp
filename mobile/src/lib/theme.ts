@@ -30,6 +30,16 @@ export const dark = {
 
 export type Palette = typeof light;
 
+export function inkOn(hex: string) {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return "#ffffff";
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const y = (r * 299 + g * 587 + b * 114) / 1000;
+  return y > 160 ? "#1a1012" : "#ffffff";
+}
+
 export function applyTenantColors(base: Palette, primary?: string, accent?: string, secondary?: string): Palette {
   if (!primary && !accent && !secondary) return base;
   const lightBg = secondary && !secondary.startsWith("#0") && !secondary.startsWith("#1")
@@ -43,6 +53,7 @@ export function applyTenantColors(base: Palette, primary?: string, accent?: stri
     brand: primary || base.brand,
     brand2: accent || primary || base.brand2,
     brass: accent || primary || base.brass,
+    bad: accent || primary || base.bad,
   };
 }
 

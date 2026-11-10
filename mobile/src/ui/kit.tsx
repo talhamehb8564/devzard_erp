@@ -18,20 +18,39 @@ import Animated, { FadeInDown, FadeIn, useReducedMotion } from "react-native-rea
 import * as Haptics from "expo-haptics";
 import { ApiError } from "../api/client";
 import { pretty, statusTone } from "../lib/format";
-import { dark, light, type Palette } from "../lib/theme";
+import { useAppearance } from "../lib/appearance";
+import { dark, inkOn, light, type Palette } from "../lib/theme";
+
+function useFontStyle() {
+  try {
+    const { fontFamily } = useAppearance();
+    return fontFamily ? { fontFamily } : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function usePalette(scheme: "light" | "dark"): Palette {
   return scheme === "dark" ? dark : light;
 }
 
+function sanitizePublicError(message?: string) {
+  const raw = (message || "").trim();
+  if (!raw) return "";
+  if (/neon|jdbc|postgres|hikari|sqlstate|hibernate|stacktrace|exception at |\/\/[a-z0-9.-]+:\d+/i.test(raw)) {
+    return "";
+  }
+  return raw;
+}
+
 export function friendlyMessage(error: unknown, fallback = "Something went wrong. Please try again.") {
   if (error instanceof ApiError) {
-    if (error.status === 0) return error.message;
-    if (error.status === 401) return error.message || "Your session expired. Please sign in again.";
+    if (error.status === 0) return sanitizePublicError(error.message) || "Cannot reach the ERP server. Check your connection and try again.";
+    if (error.status === 401) return sanitizePublicError(error.message) || "Your session expired. Please sign in again.";
     if (error.fields?.length) return error.fields.map((f) => f.message).filter(Boolean).join(" ");
-    const raw = error.message || "";
-    if (/cannot read propert|undefined is not|null is not/i.test(raw)) return fallback;
-    if (raw && !/exception|sql|hibernate|stacktrace/i.test(raw)) {
+    const raw = sanitizePublicError(error.message);
+    if (/cannot read propert|undefined is not|null is not/i.test(error.message || "")) return fallback;
+    if (raw) {
       if (error.status === 403) return raw || "You do not have permission to do that. This action is blocked for your role.";
       return raw;
     }
@@ -102,8 +121,9 @@ export function Chip({
   onPress?: () => void;
   colors: Palette;
 }) {
+  const font = useFontStyle();
   return (
-    <Pressable
+    <Pressable>
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       onPress={onPress}
@@ -116,7 +136,7 @@ export function Chip({
         borderColor: selected ? colors.brand : colors.line,
       }}
     >
-      <Text style={{ color: selected ? "#fff" : colors.ink, fontWeight: "700", fontSize: 13 }}>{label}</Text>
+      <Text style={[{ color: selected ? inkOn(colors.brand) : colors.ink, fontWeight: "700", fontSize: 13 }, font]}>{label}</Text>
     </Pressable>
   );
 }
@@ -142,11 +162,12 @@ export function Title({
   colors: Palette;
 }) {
   const reduce = useReducedMotion();
+  const font = useFontStyle();
   return (
     <Animated.View entering={reduce ? undefined : FadeInDown.duration(320)} style={{ marginBottom: 16 }}>
-      {kicker ? <Text style={[styles.kicker, { color: colors.brand }]}>{kicker}</Text> : null}
-      <Text style={[styles.h1, { color: colors.ink }]}>{title}</Text>
-      {subtitle ? <Text style={[styles.sub, { color: colors.muted }]}>{subtitle}</Text> : null}
+      {kicker ? <Text style={[styles.kicker, { color: colors.brand }, font]}>{kicker}</Text> : null}
+      <Text style={[styles.h1, { color: colors.ink }, font]}>{title}</Text>
+      {subtitle ? <Text style={[styles.sub, { color: colors.muted }, font]}>{subtitle}</Text> : null}
     </Animated.View>
   );
 }
@@ -204,9 +225,10 @@ export function Btn({
   loading?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const font = useFontStyle();
   const bg =
-    kind === "ghost" ? "transparent" : kind === "brass" ? colors.brass : kind === "danger" ? colors.bad : colors.brand;
-  const fg = kind === "ghost" ? colors.brand : "#fff";
+    kind === "ghost" ? "transparent" : kind === "brass" ? colors.brass : kind === "danger" ? colors.brass : colors.brand;
+  const fg = kind === "ghost" ? colors.brand : inkOn(bg);
   const handle = async () => {
     if (!onPress || busy || disabled || loading) return;
     void Haptics.selectionAsync().catch(() => undefined);
@@ -231,7 +253,7 @@ export function Btn({
         { backgroundColor: bg, borderColor: kind === "ghost" ? colors.line : bg, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
       ]}
     >
-      {busy || loading ? <ActivityIndicator color={fg} /> : <Text style={[styles.btnTxt, { color: fg }]}>{label}</Text>}
+      {busy || loading ? <ActivityIndicator color={fg} /> : <Text style={[styles.btnTxt, { color: fg }, font]}>{label}</Text>}
     </Pressable>
   );
 }
@@ -252,9 +274,10 @@ export function Field({
   ...rest
 }: { label: string; colors: Palette } & TextInputProps) {
   const [hidden, setHidden] = useState(!!secureTextEntry);
+  const font = useFontStyle();
   return (
     <View style={{ marginBottom: 12 }}>
-      <Text style={[styles.fieldLbl, { color: colors.muted }]}>{label}</Text>
+      <Text style={[styles.fieldLbl, { color: colors.muted }, font]}>{label}</Text>
       <View>
         <TextInput
           placeholderTextColor={colors.muted}
@@ -266,6 +289,7 @@ export function Field({
               backgroundColor: colors.card,
               paddingRight: secureTextEntry ? 44 : 12,
             },
+            font,
           ]}
           {...rest}
           secureTextEntry={secureTextEntry ? hidden : false}
@@ -287,11 +311,12 @@ export function Field({
 }
 
 export function Empty({ title, hint, colors }: { title: string; hint?: string; colors: Palette }) {
+  const font = useFontStyle();
   return (
     <Card colors={colors}>
       <Ionicons name="file-tray-outline" size={28} color={colors.muted} />
-      <Text style={[styles.h3, { color: colors.ink, marginTop: 8 }]}>{title}</Text>
-      {hint ? <Text style={[styles.sub, { color: colors.muted, marginTop: 6 }]}>{hint}</Text> : null}
+      <Text style={[styles.h3, { color: colors.ink, marginTop: 8 }, font]}>{title}</Text>
+      {hint ? <Text style={[styles.sub, { color: colors.muted, marginTop: 6 }, font]}>{hint}</Text> : null}
     </Card>
   );
 }
@@ -307,10 +332,11 @@ export function ErrorBox({
   colors: Palette;
   title?: string;
 }) {
+  const font = useFontStyle();
   return (
-    <Card colors={colors} style={{ borderColor: colors.bad }}>
-      <Text style={[styles.h3, { color: colors.bad }]}>{title}</Text>
-      <Text style={[styles.sub, { color: colors.muted, marginTop: 6 }]}>{friendlyMessage(error)}</Text>
+    <Card colors={colors} style={{ borderColor: colors.brass }}>
+      <Text style={[styles.h3, { color: colors.brass }, font]}>{title}</Text>
+      <Text style={[styles.sub, { color: colors.muted, marginTop: 6 }, font]}>{friendlyMessage(error)}</Text>
       {onRetry ? <View style={{ marginTop: 10 }}><Btn label="Retry" onPress={onRetry} colors={colors} kind="ghost" /></View> : null}
     </Card>
   );
@@ -373,15 +399,15 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[] = [], enabled 
       setLoading(false);
     }
   }, [enabled]);
+  const dataRef = useRef<T | null>(null);
+  dataRef.current = data;
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
-      setError(null);
-      setData(null);
       return;
     }
     let cancelled = false;
-    setLoading(true);
+    if (dataRef.current == null) setLoading(true);
     setError(null);
     void (async () => {
       try {

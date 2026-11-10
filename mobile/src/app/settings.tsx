@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import { useSession } from "../lib/session";
 import { useAppearance } from "../lib/appearance";
 import { pickImage } from "../lib/picker";
 import { fileApi, settingsApi, tenantApi } from "../api/services";
-import { Btn, Card, Empty, Field, Screen, Title, friendlyMessage, useAsync } from "../ui/kit";
+import { Btn, Card, Chip, Empty, Field, Screen, Title, friendlyMessage, useAsync } from "../ui/kit";
+import { PORTAL_FONTS, persistFont, type PortalFont } from "../lib/fonts";
 import { BrandHeader } from "../ui/logo";
 import { RequireAuth } from "../ui/gate";
 
 export default function Settings() {
   const { user, tenant, brand, refreshTenant } = useSession();
-  const { colors } = useAppearance();
+  const { colors, applyFont } = useAppearance();
   const s = useAsync(() => settingsApi.get());
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -21,6 +22,8 @@ export default function Settings() {
   const [session, setSession] = useState("");
   const [primary, setPrimary] = useState("");
   const [accent, setAccent] = useState("");
+  const [secondary, setSecondary] = useState("");
+  const [uiFont, setUiFont] = useState<PortalFont>("Outfit");
   const [bankName, setBankName] = useState("");
   const [accountTitle, setAccountTitle] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -39,6 +42,8 @@ export default function Settings() {
     setSession(tenant.academicSession || "");
     setPrimary(tenant.primaryColor || "");
     setAccent(tenant.accentColor || "");
+    setSecondary(tenant.secondaryColor || "");
+    if (tenant.uiFont && PORTAL_FONTS.includes(tenant.uiFont as PortalFont)) setUiFont(tenant.uiFont as PortalFont);
   }, [tenant]);
 
   useEffect(() => {
@@ -70,6 +75,19 @@ export default function Settings() {
             <Field label="Academic session" colors={colors} value={session} onChangeText={setSession} />
             <Field label="Primary colour (#RRGGBB)" colors={colors} value={primary} onChangeText={setPrimary} autoCapitalize="none" />
             <Field label="Accent colour (#RRGGBB)" colors={colors} value={accent} onChangeText={setAccent} autoCapitalize="none" />
+            <Field label="Secondary colour (#RRGGBB)" colors={colors} value={secondary} onChangeText={setSecondary} autoCapitalize="none" />
+            <Text style={{ color: colors.muted, marginBottom: 8 }}>Portal font</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              {PORTAL_FONTS.map((f) => (
+                <Chip
+                  key={f}
+                  label={f}
+                  selected={uiFont === f}
+                  colors={colors}
+                  onPress={() => { setUiFont(f); applyFont(f); }}
+                />
+              ))}
+            </View>
             <Btn
               label="Upload logo"
               kind="ghost"
@@ -106,7 +124,17 @@ export default function Settings() {
                     academicSession: session,
                     primaryColor: primary,
                     accentColor: accent,
+                    secondaryColor: secondary,
+                    uiFont,
                   });
+                  await settingsApi.save({
+                    ...s.data,
+                    primaryColor: primary,
+                    accentColor: accent,
+                    secondaryColor: secondary,
+                    uiFont,
+                  });
+                  await persistFont(uiFont);
                   await refreshTenant();
                   setMsg("School details saved.");
                 } catch (e) {

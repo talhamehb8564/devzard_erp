@@ -81,7 +81,7 @@ async function tryRefresh(): Promise<boolean> {
 }
 
 const REQUEST_TIMEOUT_MS = 45_000;
-const GET_TIMEOUT_MS = 12_000;
+const GET_TIMEOUT_MS = 20_000;
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const ctrl = new AbortController();
@@ -90,9 +90,9 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = REQU
     return await fetch(url, { ...init, signal: ctrl.signal });
   } catch (e) {
     if (e instanceof DOMException && e.name === "AbortError") {
-      throw new ApiError(0, "The request timed out talking to the database. Retry once; if it persists the Neon connection is stalling.");
+      throw new ApiError(0, "The request timed out. Please retry.");
     }
-    throw new ApiError(0, "Cannot reach the ERP server. Start the Spring Boot API on port 8080.");
+    throw new ApiError(0, "Cannot reach the ERP server. Check your connection and try again.");
   } finally {
     window.clearTimeout(timer);
   }
@@ -142,10 +142,16 @@ async function send<T>(
   }
   const startedEpoch = getAuthEpoch();
   const method = (init.method || "GET").toUpperCase();
-  const timeoutMs = path.includes("/auth/login") || path.includes("/auth/refresh") || method === "GET" || method === "HEAD"
-    ? GET_TIMEOUT_MS
-    : REQUEST_TIMEOUT_MS;
-  const res = await fetchWithTimeout(path, { ...init, headers }, timeoutMs);
+  const timeoutMs = method === "GET" || method === "HEAD" ? GET_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+  let res: Response;
+  try {
+    res = await fetchWithTimeout(path, { ...init, headers }, timeoutMs);
+  } catch (e) {
+    if (retry && method === "GET" && e instanceof ApiError && e.status === 0) {
+      return send<T>(path, init, false);
+    }
+    throw e;
+  }
   if (
     res.status === 401 &&
     retry &&

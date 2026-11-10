@@ -7,6 +7,7 @@ import com.erpschool.common.exception.DuplicateResourceException;
 import com.erpschool.common.exception.ForbiddenException;
 import com.erpschool.common.exception.ResourceNotFoundException;
 import com.erpschool.common.util.TenantGuard;
+import com.erpschool.settings.PortalFonts;
 import com.erpschool.tenant.context.TenantContext;
 import com.erpschool.tenant.dto.CreateTenantRequest;
 import com.erpschool.tenant.dto.CreateTenantResponse;
@@ -164,6 +165,12 @@ public class TenantService {
         }
         if (request.getAccentColor() != null) {
             tenant.setAccentColor(trimToNull(request.getAccentColor()));
+        }
+        if (request.getSecondaryColor() != null) {
+            tenant.setSecondaryColor(trimToNull(request.getSecondaryColor()));
+        }
+        if (request.getUiFont() != null) {
+            tenant.setUiFont(PortalFonts.sanitize(request.getUiFont()));
         }
         if (request.getWebsite() != null) {
             tenant.setWebsite(trimToNull(request.getWebsite()));

@@ -4,6 +4,7 @@ import { useLookups } from "../../lib/lookups";
 import { fmtDate, money, monthStart, pretty, today } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useBranding } from "../../lib/branding";
+import { applyFont, PORTAL_FONTS } from "../../lib/theme";
 import { useToast } from "../../lib/toast";
 import { Badge, Button, Empty, Field, FileLink, Form, Modal, QueryState, Table, useAsync } from "../../ui/kit";
 import ChildSwitch, { useActiveStudentId } from "./ChildSwitch";
@@ -494,6 +495,7 @@ export function SettingsPage() {
               logoUrl = stored.url;
             }
             await settingsApi.save({ ...current, logoUrl });
+            applyFont(current.uiFont);
             toast("ok", "Settings saved");
             await reload();
             if (admin) await reloadBrand();
@@ -515,8 +517,15 @@ export function SettingsPage() {
                 <Field label="Accent color"><input type="color" value={current.accentColor || "#c4a574"} onChange={(e) => setForm({ ...form, accentColor: e.target.value })} /></Field>
                 <Field label="Secondary color"><input type="color" value={current.secondaryColor || "#1f4d43"} onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })} /></Field>
                 <Field label="Portal font">
-                  <select value={current.uiFont || "Outfit"} onChange={(e) => setForm({ ...form, uiFont: e.target.value })}>
-                    {["Outfit", "Fraunces", "Source Sans 3", "Literata", "Atkinson Hyperlegible", "Merriweather"].map((f) => (
+                  <select
+                    value={current.uiFont || "Outfit"}
+                    onChange={(e) => {
+                      const uiFont = e.target.value;
+                      setForm({ ...form, uiFont });
+                      applyFont(uiFont);
+                    }}
+                  >
+                    {PORTAL_FONTS.map((f) => (
                       <option key={f} value={f}>{f}</option>
                     ))}
                   </select>

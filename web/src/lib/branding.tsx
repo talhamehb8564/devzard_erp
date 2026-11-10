@@ -131,7 +131,9 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       setCampuses(list);
       setMissing(!next);
       applyBrand(next?.primaryColor, next?.accentColor, next?.secondaryColor);
-      applyFont(next?.uiFont);
+      const path = window.location.pathname;
+      const inApp = path.startsWith("/app") || path.startsWith("/admin/app");
+      if (!inApp && next?.uiFont) applyFont(next.uiFont);
       if (next?.name) document.title = next.name;
       setCampusIdState((cur) => {
         const valid = cur && list.some((c) => c.id === cur) ? cur : list[0]?.id || null;
