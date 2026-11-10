@@ -7,7 +7,7 @@ import { useSidebarWidth } from "../lib/sidebar";
 import { fmtDate, money, pretty } from "../lib/format";
 import { useSession } from "../lib/session";
 import { useToast } from "../lib/toast";
-import { applyTheme, readTheme, type Theme } from "../lib/theme";
+import ThemeToggle from "../ui/ThemeToggle";
 import { ApiError } from "../api/client";
 import { Badge, Bars, Button, Donut, Empty, Field, FileLink, Form, Loading, Modal, Pager, QueryState, Search, Stat, Table, useAfterPaint, useAsync, useDebounced } from "../ui/kit";
 import UserMenu from "../ui/UserMenu";
@@ -19,12 +19,6 @@ export default function OwnerApp() {
   const { onResizePointerDown } = useSidebarWidth();
   const [open, setOpen] = useState(false);
   useEffect(() => { setOpen(false); }, [loc.pathname]);
-  const [theme, setTheme] = useState<Theme>(readTheme());
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    applyTheme(next);
-    setTheme(next);
-  };
   if (user?.mustChangePassword && loc.pathname !== "/admin/app/password") {
     return <ChangePassword />;
   }
@@ -65,9 +59,7 @@ export default function OwnerApp() {
             <strong>{user?.fullName}</strong>
           </div>
           <div className="row">
-            <button type="button" className="icon-btn" onClick={toggleTheme} title="Theme">
-              {theme === "dark" ? "☀" : "☾"}
-            </button>
+            <ThemeToggle />
             <UserMenu passwordTo="/admin/app/password" />
           </div>
         </header>

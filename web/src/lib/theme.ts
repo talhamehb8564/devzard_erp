@@ -50,7 +50,14 @@ export function readTheme(): Theme {
 }
 
 export function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+  root.style.removeProperty("--bg");
+  root.style.removeProperty("--bg-2");
+  root.style.removeProperty("--ink");
+  root.style.removeProperty("--muted");
+  root.style.removeProperty("--card");
   localStorage.setItem(THEME_KEY, theme);
 }
 
@@ -124,10 +131,14 @@ export function applyFont(family?: string | null) {
   document.documentElement.dataset.font = resolved;
 }
 
-/** Push school primary/accent/secondary into CSS variables used by sidebar, surfaces, and highlights. */
+/** Push school chrome colors. Surfaces stay in CSS so dark/light can switch without inline --bg/--ink winning. */
 export function applyBrand(primary?: string | null, accent?: string | null, secondary?: string | null) {
   const root = document.documentElement.style;
-  const dark = document.documentElement.dataset.theme === "dark";
+  root.removeProperty("--bg");
+  root.removeProperty("--bg-2");
+  root.removeProperty("--ink");
+  root.removeProperty("--muted");
+  root.removeProperty("--card");
   if (primary) {
     root.setProperty("--brand", primary);
     root.setProperty("--navy", primary);
@@ -155,21 +166,6 @@ export function applyBrand(primary?: string | null, accent?: string | null, seco
   }
   if (secondary) {
     root.setProperty("--brand-3", secondary);
-    const lum = luminance(secondary);
-    if (dark) {
-      root.setProperty("--bg", `color-mix(in srgb, ${secondary} 28%, #10131a)`);
-      root.setProperty("--bg-2", `color-mix(in srgb, ${secondary} 18%, #171c26)`);
-    } else if (lum > 0.72) {
-      root.setProperty("--bg", secondary);
-      root.setProperty("--bg-2", "#ffffff");
-      root.setProperty("--ink", "#1a1012");
-      root.setProperty("--muted", "#5c4548");
-    } else {
-      root.setProperty("--bg", `color-mix(in srgb, ${secondary} 16%, #ffffff)`);
-      root.setProperty("--bg-2", "#ffffff");
-      root.setProperty("--ink", lum < 0.18 ? "#f6f1ea" : "#1a1012");
-      root.setProperty("--muted", lum < 0.18 ? "#d9cfc4" : "#5c4548");
-    }
   }
 }
 

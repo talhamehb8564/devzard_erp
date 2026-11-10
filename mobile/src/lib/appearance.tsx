@@ -4,7 +4,10 @@ import { applyTenantColors, dark, light, type Palette } from "./theme";
 import { useSession } from "./session";
 import { bakedBrand } from "./config";
 import { safeHex } from "./media";
+import { storeGet, storeSet } from "./storage";
 import { ensureFontLoaded, isPortalFont, persistFont, readStoredFont, systemFontFamily, type PortalFont } from "./fonts";
+
+const THEME_KEY = "erp.theme";
 
 interface Appearance {
   scheme: "light" | "dark";
@@ -31,6 +34,17 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void readStoredFont().then((v) => { if (v) setStored(v); });
+    void (async () => {
+      let v = await storeGet(THEME_KEY);
+      if (v !== "dark" && v !== "light") {
+        try {
+          v = typeof localStorage !== "undefined" ? localStorage.getItem(THEME_KEY) : null;
+        } catch {
+          v = null;
+        }
+      }
+      if (v === "dark" || v === "light") setOverride(v);
+    })();
   }, []);
 
   useEffect(() => {
@@ -69,7 +83,16 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
         setStored(name);
         void persistFont(name);
       },
-      toggle: () => setOverride(scheme === "dark" ? "light" : "dark"),
+      toggle: () => {
+        const next = scheme === "dark" ? "light" : "dark";
+        setOverride(next);
+        void storeSet(THEME_KEY, next);
+        try {
+          if (typeof localStorage !== "undefined") localStorage.setItem(THEME_KEY, next);
+        } catch {
+          /* native */
+        }
+      },
     }),
     [scheme, colors, nativeFamily, chosen],
   );

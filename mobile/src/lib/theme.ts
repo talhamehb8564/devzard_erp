@@ -40,20 +40,37 @@ export function inkOn(hex: string) {
   return y > 160 ? "#1a1012" : "#ffffff";
 }
 
+function hexLum(hex: string) {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return 1;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 / 255;
+}
+
 export function applyTenantColors(base: Palette, primary?: string, accent?: string, secondary?: string): Palette {
   if (!primary && !accent && !secondary) return base;
-  const lightBg = secondary && !secondary.startsWith("#0") && !secondary.startsWith("#1")
-    ? secondary
-    : secondary
-      ? mixHex(secondary, base.bg, 0.18)
-      : base.bg;
+  const darkUi = hexLum(base.bg) < 0.35;
+  let bg = base.bg;
+  let card = base.card;
+  if (secondary) {
+    bg = darkUi ? mixHex(secondary, base.bg, 0.16) : hexLum(secondary) > 0.72 ? secondary : mixHex(secondary, base.bg, 0.2);
+    card = darkUi ? mixHex(secondary, base.card, 0.1) : base.card;
+  }
+  const brand = primary || base.brand;
+  const accentColor = accent || primary || base.brand2;
+  const readable = (hex: string) => (darkUi && hexLum(hex) < 0.42 ? mixHex(hex, "#F4F7FB", 0.42) : hex);
   return {
     ...base,
-    bg: secondary ? lightBg : base.bg,
-    brand: primary || base.brand,
-    brand2: accent || primary || base.brand2,
-    brass: accent || primary || base.brass,
-    bad: accent || primary || base.bad,
+    bg,
+    card,
+    ink: base.ink,
+    muted: base.muted,
+    brand: readable(brand),
+    brand2: readable(accentColor),
+    brass: readable(accentColor),
+    bad: readable(accentColor),
   };
 }
 

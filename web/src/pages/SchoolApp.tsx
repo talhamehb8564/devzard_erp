@@ -4,7 +4,8 @@ import { auditApi, notificationApi } from "../api/services";
 import { LookupsProvider, lookupsNeeded, useLookups } from "../lib/lookups";
 import { LOGIN_PORTALS } from "../lib/routes";
 import { useSession } from "../lib/session";
-import { applyBrand, applyFont, applyTheme, readTheme, type Theme } from "../lib/theme";
+import { applyBrand, applyFont } from "../lib/theme";
+import ThemeToggle from "../ui/ThemeToggle";
 import { useBranding } from "../lib/branding";
 import { PATH_FEATURE, useFeatures } from "../lib/features";
 import { useSidebarWidth } from "../lib/sidebar";
@@ -30,7 +31,6 @@ export default function SchoolApp() {
   const { on } = useFeatures();
   const { onResizePointerDown } = useSidebarWidth();
   const [open, setOpen] = useState(false);
-  const [theme, setTheme] = useState<Theme>(readTheme());
   const [unread, setUnread] = useState(0);
   const loc = useLocation();
 
@@ -71,11 +71,6 @@ export default function SchoolApp() {
   const items = SCHOOL_NAV.filter((i) => i.roles.includes(role) && on(PATH_FEATURE[i.to]));
   const current = items.find((i) => i.to === loc.pathname)
     || items.filter((i) => i.to !== "/app" && loc.pathname.startsWith(i.to)).sort((a, b) => b.to.length - a.to.length)[0];
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    applyTheme(next);
-    setTheme(next);
-  };
 
   return (
     <LookupsProvider
@@ -118,7 +113,7 @@ export default function SchoolApp() {
               <strong>{user.fullName}</strong>
             </div>
             <div className="row">
-              <button type="button" className="icon-btn" onClick={toggleTheme} title="Theme">{theme === "dark" ? "☀" : "☾"}</button>
+              <ThemeToggle />
               <UserMenu passwordTo="/app/password" />
             </div>
           </header>

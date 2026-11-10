@@ -66,6 +66,18 @@ public class FeatureService {
         return toWire(flags(tenantId));
     }
 
+    /** Cache hit only — never hits the database. Login uses this so BCrypt is not followed by a feature query. */
+    public Map<String, Boolean> snapshotIfCached(UUID tenantId) {
+        if (tenantId == null) {
+            return Map.of();
+        }
+        Cached hit = cache.get(tenantId);
+        if (hit == null || hit.expiresAt <= System.currentTimeMillis()) {
+            return Map.of();
+        }
+        return toWire(hit.flags);
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Boolean> forTenant(UUID tenantId) {
         requireTenant(tenantId);

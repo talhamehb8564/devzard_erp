@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useBranding } from "../lib/branding";
+import ThemeToggle from "../ui/ThemeToggle";
 import RotatingLine from "../ui/RotatingLine";
 
 const roles: { to: string; title: string; hint: string; icon: ReactNode }[] = [
@@ -29,7 +30,10 @@ export default function PortalPage() {
             {campus ? <div className="hint">{campus.name}</div> : null}
           </div>
         </Link>
-        <Link to="/" className="back-link">← Back to website</Link>
+        <div className="row">
+          <ThemeToggle />
+          <Link to="/" className="back-link">← Back to website</Link>
+        </div>
       </header>
       <section className="portal-hero">
         <p className="kicker">All logins</p>

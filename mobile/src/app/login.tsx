@@ -6,7 +6,7 @@ import { useSession } from "../lib/session";
 import { brandSubtitle } from "../lib/format";
 import { useAppearance } from "../lib/appearance";
 import { ROLE_LABEL, type Role } from "../lib/types";
-import { Screen } from "../ui/kit";
+import { Btn, Screen } from "../ui/kit";
 import { BrandHeader } from "../ui/logo";
 import { apiOrigin, bakedBrand } from "../lib/config";
 
@@ -22,7 +22,7 @@ export const PORTALS: { role: Role; icon: keyof typeof Ionicons.glyphMap; hint: 
 
 export default function LoginScreen() {
   const { brand } = useSession();
-  const { colors } = useAppearance();
+  const { colors, toggle, scheme } = useAppearance();
   const reduce = useReducedMotion();
   const origin = apiOrigin();
   const shown = brand || bakedBrand();
@@ -84,7 +84,13 @@ export default function LoginScreen() {
           </Animated.View>
         ))}
       </View>
-      <Text style={{ color: colors.muted, fontSize: 12 }}>
+      <Btn
+        label={scheme === "dark" ? "Use light theme" : "Use dark theme"}
+        kind="ghost"
+        colors={colors}
+        onPress={toggle}
+      />
+      <Text style={{ color: colors.muted, fontSize: 12, marginTop: 12 }}>
         {origin ? `API ${origin}` : "Set EXPO_PUBLIC_API_URL for this build (HTTPS in production)."}
       </Text>
     </Screen>

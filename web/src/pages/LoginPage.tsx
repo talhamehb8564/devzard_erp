@@ -7,6 +7,7 @@ import { ROLE_LABEL } from "../lib/types";
 import { homeFor, LOGIN_PORTALS } from "../lib/routes";
 import { Button, Field, Form } from "../ui/kit";
 import CoinLogin from "../ui/CoinLogin";
+import ThemeToggle from "../ui/ThemeToggle";
 import { useToast } from "../lib/toast";
 import { prefetchPortal } from "../lib/prefetch";
 
@@ -48,7 +49,12 @@ export default function LoginPage({ owner = false }: { owner?: boolean }) {
 
   return (
     <CoinLogin
-      back={<Link to={owner ? "/" : "/portals"} className="back-link">← {owner ? "Home" : "All portals"}</Link>}
+      back={
+        <>
+          <Link to={owner ? "/" : "/portals"} className="back-link">← {owner ? "Home" : "All portals"}</Link>
+          <ThemeToggle />
+        </>
+      }
       logo={
         school?.logoUrl && !owner
           ? <img src={school.logoUrl} alt="" />

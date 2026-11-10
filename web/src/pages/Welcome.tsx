@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { publicApi, setupApi, websiteApi } from "../api/services";
 import { useBranding, type PublicCampus, type PublicSchool } from "../lib/branding";
 import { applyBrand, applyFont } from "../lib/theme";
+import ThemeToggle from "../ui/ThemeToggle";
 import {
   DEFAULT_ABOUT,
   DEFAULT_NOTICE_BODY,
@@ -277,6 +278,7 @@ export default function Welcome({ preview = false }: { preview?: boolean }) {
             </Link>
           ) : null}
           {preview ? null : <Link to="/portals" className="btn ghost" style={{ "--i": SITE_MENU.length + 1 } as CSSProperties} onClick={closeMenu}>School Portal</Link>}
+          <div style={{ "--i": SITE_MENU.length + 2 } as CSSProperties}><ThemeToggle /></div>
         </nav>
       </div>
     </div>
@@ -301,6 +303,7 @@ export default function Welcome({ preview = false }: { preview?: boolean }) {
               {campuses.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           ) : null}
+          <ThemeToggle />
           {preview ? <span className="kicker">Preview</span> : <Link to="/portals" className="btn ghost sm site-nav-portal">School Portal</Link>}
         </div>
         <div className="burger-slot" aria-hidden="true" />

@@ -312,7 +312,7 @@ public class AuthService {
             return Map.of();
         }
         try {
-            return featureService.snapshot(tenantId);
+            return featureService.snapshotIfCached(tenantId);
         } catch (RuntimeException ignored) {
             return Map.of();
         }
