@@ -932,7 +932,7 @@ html.menu-open, body.menu-open {
   margin: 16px 8% 0; position: relative; z-index: 3;
   padding: 18px 22px; border-radius: 18px;
   background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
-  animation: bannerPulse 3.6s ease-in-out infinite;
+  animation: bannerPulse 3.6s ease-in-out infinite, bannerWave 5.2s ease-in-out infinite;
 }
 .site-banner.sample { border-style: dashed; }
 .site-banner strong { display: block; font-size: 18px; margin: 4px 0; }
@@ -940,6 +940,13 @@ html.menu-open, body.menu-open {
 @keyframes bannerPulse {
   0%, 100% { box-shadow: var(--shadow); }
   50% { box-shadow: 0 16px 40px color-mix(in srgb, var(--brand-2) 22%, transparent); }
+}
+@keyframes bannerWave {
+  0%, 100% { transform: translateY(0); }
+  20% { transform: translateY(-4px); }
+  40% { transform: translateY(-1px); }
+  60% { transform: translateY(-7px); }
+  80% { transform: translateY(-2px); }
 }
 .sample-copy { color: var(--muted); font-style: italic; }
 .site-principal {

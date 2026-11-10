@@ -107,14 +107,7 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
     } else {
       setLoaded(true);
     }
-    const wait = cached ? 1200 : 0;
-    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
-    if (typeof idle === "function" && wait > 0) {
-      const id = idle(() => { void reload(); }, { timeout: wait });
-      const cancel = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
-      return () => cancel?.(id);
-    }
-    const t = window.setTimeout(() => { void reload(); }, wait);
+    const t = window.setTimeout(() => { void reload(); }, 0);
     return () => window.clearTimeout(t);
   }, [user?.id, user?.tenantId]);
 

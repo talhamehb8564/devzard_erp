@@ -129,11 +129,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
       const idle = (window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
       if (typeof idle === "function") {
-        const id = idle(() => { void reload(); }, { timeout: 800 });
+        const id = idle(() => { void reload(); }, { timeout: 0 });
         const cancel = (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
         return () => cancel?.(id);
       }
-      const t = window.setTimeout(() => { void reload(); }, 200);
+      const t = window.setTimeout(() => { void reload(); }, 0);
       return () => window.clearTimeout(t);
     }
     void reload();
