@@ -332,7 +332,7 @@ public class HomeworkService {
                         com.erpschool.academic.entity.Section::getId,
                         com.erpschool.academic.entity.Section::getName,
                         (a, b) -> a));
-        return list.stream()
+        List<Map<String, Object>> rows = list.stream()
                 .map(h -> {
                     Map<String, Object> m = toMap(h, byHomework.getOrDefault(h.getId(), List.of()));
                     m.put("className", classNames.get(h.getClassId()));
@@ -341,6 +341,68 @@ public class HomeworkService {
                     return m;
                 })
                 .toList();
+        attachSubmissionState(rows, list);
+        return rows;
+    }
+
+    private void attachSubmissionState(List<Map<String, Object>> rows, List<Homework> list) {
+        if (rows.isEmpty()) return;
+        UUID tenantId = TenantGuard.requireTenantId(null);
+        UserRole role = TenantContext.getRole();
+        List<UUID> hwIds = list.stream().map(Homework::getId).toList();
+        if (hwIds.isEmpty()) {
+            return;
+        }
+        if (role == UserRole.STUDENT) {
+            Student me = studentRepository.findByTenantIdAndUserId(tenantId, TenantContext.getUserId()).orElse(null);
+            if (me == null) return;
+            Map<UUID, HomeworkSubmission> mine = new HashMap<>();
+            for (HomeworkSubmission s : submissionRepository
+                    .findByTenantIdAndStudentIdAndHomeworkIdIn(tenantId, me.getId(), hwIds)) {
+                mine.put(s.getHomeworkId(), s);
+            }
+            for (Map<String, Object> m : rows) {
+                HomeworkSubmission sub = mine.get((UUID) m.get("id"));
+                m.put("submitted", sub != null);
+                m.put("submissionStatus", sub == null ? "NOT_SUBMITTED" : sub.getStatus().name());
+            }
+            return;
+        }
+        if (role == UserRole.PARENT) {
+            List<UUID> childIds = parentStudentRepository
+                    .findByTenantIdAndParentUserId(tenantId, TenantContext.getUserId())
+                    .stream().map(ParentStudent::getStudentId).toList();
+            Map<UUID, Integer> counts = new HashMap<>();
+            if (!childIds.isEmpty()) {
+                for (HomeworkSubmission s : submissionRepository.findByTenantIdAndHomeworkIdIn(tenantId, hwIds)) {
+                    if (childIds.contains(s.getStudentId())) {
+                        counts.merge(s.getHomeworkId(), 1, Integer::sum);
+                    }
+                }
+            }
+            for (Map<String, Object> m : rows) {
+                int n = counts.getOrDefault((UUID) m.get("id"), 0);
+                m.put("submitted", n > 0);
+                m.put("submittedCount", n);
+            }
+            return;
+        }
+        Map<UUID, Integer> submitted = new HashMap<>();
+        for (HomeworkSubmission s : submissionRepository.findByTenantIdAndHomeworkIdIn(tenantId, hwIds)) {
+            submitted.merge(s.getHomeworkId(), 1, Integer::sum);
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> m = rows.get(i);
+            Homework h = list.get(i);
+            int n = submitted.getOrDefault(h.getId(), 0);
+            long roster = 0;
+            if (h.getClassId() != null && h.getSectionId() != null) {
+                roster = studentRepository.countInScope(
+                        tenantId, h.getClassId(), h.getSectionId(), null, StudentStatus.ACTIVE);
+            }
+            m.put("submittedCount", n);
+            m.put("rosterCount", roster);
+        }
     }
 
     private Map<String, Object> toMap(Homework h) {

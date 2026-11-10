@@ -167,7 +167,7 @@ function TeacherDashBody() {
             <h3>Homework</h3>
             <QueryState status={homeworkQ} label="homework">
               {!homework.length ? <Empty title="No homework assigned" /> : (
-                <Table headers={["Title", "Due"]} rows={homework.map((h) => [h.title, h.dueDate])} />
+                <Table headers={["Title", "Due", "Submitted"]} rows={homework.map((h) => [h.title, h.dueDate, `${h.submittedCount ?? 0}/${h.rosterCount ?? "—"}`])} />
               )}
             </QueryState>
           </div>
@@ -311,7 +311,7 @@ function StudentDashBody() {
         <div className="card">
           <h3>Homework</h3>
           <QueryState status={homeworkQ} label="homework">
-            {!hw.length ? <Empty title="Nothing assigned" /> : <Table headers={["Title", "Due"]} rows={hw.map((h) => [h.title, h.dueDate])} />}
+            {!hw.length ? <Empty title="Nothing assigned" /> : <Table headers={["Title", "Due", "Submitted"]} rows={hw.map((h) => [h.title, h.dueDate, h.submitted ? "Submitted" : "Not submitted"])} />}
           </QueryState>
         </div>
         ) : null}

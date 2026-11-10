@@ -2,6 +2,7 @@ package com.erpschool.settings.service;
 
 import com.erpschool.common.cache.CatalogCache;
 import com.erpschool.common.util.TenantGuard;
+import com.erpschool.settings.PortalFonts;
 import com.erpschool.settings.entity.SchoolSettings;
 import com.erpschool.settings.repository.SchoolSettingsRepository;
 import com.erpschool.tenant.context.TenantContext;
@@ -61,6 +62,7 @@ public class SchoolSettingsService {
             s.setPrimaryColor(incoming.getPrimaryColor());
             s.setAccentColor(incoming.getAccentColor());
             s.setSecondaryColor(incoming.getSecondaryColor());
+            s.setUiFont(PortalFonts.sanitize(incoming.getUiFont()));
         }
         s.setAbsentDeduction(incoming.getAbsentDeduction());
         s.setLateDeduction(incoming.getLateDeduction());
@@ -88,6 +90,9 @@ public class SchoolSettingsService {
         }
         if (saved.getSecondaryColor() != null) {
             tenant.setSecondaryColor(saved.getSecondaryColor());
+        }
+        if (saved.getUiFont() != null) {
+            tenant.setUiFont(PortalFonts.sanitize(saved.getUiFont()));
         }
         tenantRepository.save(tenant);
     }

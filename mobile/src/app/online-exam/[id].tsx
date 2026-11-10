@@ -172,6 +172,9 @@ function StaffExam() {
   const exam = useAsync(() => onlineExamApi.get(id!), [id], Boolean(id));
   const results = useAsync(() => onlineExamApi.results(id!), [id], Boolean(id));
   const recipients = useAsync(() => onlineExamApi.recipients(id!), [id], Boolean(id));
+  const [grading, setGrading] = useState<string | null>(null);
+  const detail = useAsync(() => onlineExamApi.attempt(id!, grading!), [id, grading], Boolean(id && grading));
+  const [marks, setMarks] = useState<Record<string, string>>({});
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [picked, setPicked] = useState<Record<string, boolean>>({});
@@ -310,17 +313,89 @@ function StaffExam() {
           />
         </Card>
         <QueryState loading={results.loading} error={results.error} data={results.data} onRetry={() => void results.reload()} colors={colors} empty={<Empty title="No students" colors={colors} />}>
-          {(results.data || []).map((row) => (
-            <Card key={String(row.studentId)} colors={colors}>
-              <Text style={{ color: colors.ink, fontWeight: "800" }}>{String(row.studentName || "Student")}</Text>
-              <Text style={{ color: colors.muted }}>
-                {row.excluded
-                  ? `Excluded — ${statusReasonLabel(String(row.excludeReason || ""), null) || "not assigned"}`
-                  : `${pretty(String(row.status || ""))} · ${row.obtainedMarks == null ? "—" : `${row.obtainedMarks} / ${row.totalMarks}`}`}
-              </Text>
-            </Card>
-          ))}
+          {(results.data || []).map((row) => {
+            const attemptId = String(row.id || "");
+            const status = String(row.status || "");
+            const canReview = Boolean(attemptId) && !row.excluded && status !== "NOT_STARTED" && status !== "IN_PROGRESS";
+            return (
+              <Card key={String(row.studentId)} colors={colors}>
+                <Text style={{ color: colors.ink, fontWeight: "800" }}>{String(row.studentName || "Student")}</Text>
+                <Text style={{ color: colors.muted }}>
+                  {row.excluded
+                    ? `Excluded — ${statusReasonLabel(String(row.excludeReason || ""), null) || "not assigned"}`
+                    : `${pretty(status)} · ${row.obtainedMarks == null ? "—" : `${row.obtainedMarks} / ${row.totalMarks}`}`}
+                </Text>
+                {canReview ? (
+                  <Btn
+                    label={grading === attemptId ? "Hide paper" : "Review & grade"}
+                    kind="ghost"
+                    colors={colors}
+                    onPress={() => { setGrading(grading === attemptId ? null : attemptId); setMarks({}); setErr(""); }}
+                  />
+                ) : null}
+              </Card>
+            );
+          })}
         </QueryState>
+        {grading ? (
+          <QueryState loading={detail.loading} error={detail.error} data={detail.data} onRetry={() => void detail.reload()} colors={colors} empty={<Empty title="No submitted answers" colors={colors} />}>
+            <Card colors={colors}>
+              <Text style={{ color: colors.ink, fontWeight: "800", marginBottom: 8 }}>Submitted answers</Text>
+              {(((detail.data?.questions as {
+                id?: string;
+                questionType?: string;
+                prompt?: string;
+                marks?: number;
+                optionChoice?: string;
+                textAnswer?: string;
+                correctOption?: string;
+                obtainedMarks?: number;
+                gradingStatus?: string;
+              }[]) || [])).map((q, i) => {
+                const qid = String(q.id || i);
+                const manual = q.questionType !== "MCQ" || !q.correctOption;
+                return (
+                  <View key={qid} style={{ marginBottom: 12 }}>
+                    <Text style={{ color: colors.muted }}>{q.questionType} · {q.marks} marks · {q.gradingStatus || "PENDING"}</Text>
+                    <Text style={{ color: colors.ink, fontWeight: "700" }}>{q.prompt}</Text>
+                    <Text style={{ color: colors.muted }}>
+                      {q.questionType === "MCQ" ? `Choice ${q.optionChoice || "—"}` : (q.textAnswer || "—")}
+                    </Text>
+                    {manual ? (
+                      <Field
+                        label="Obtained"
+                        colors={colors}
+                        value={marks[qid] ?? (q.obtainedMarks == null ? "" : String(q.obtainedMarks))}
+                        onChangeText={(t) => setMarks((m) => ({ ...m, [qid]: t }))}
+                        keyboardType="numeric"
+                      />
+                    ) : null}
+                  </View>
+                );
+              })}
+              <Btn
+                label="Save grades"
+                colors={colors}
+                onPress={async () => {
+                  try {
+                    const qs = (detail.data?.questions as { id?: string; questionType?: string; correctOption?: string }[]) || [];
+                    await onlineExamApi.grade(id!, grading, qs.filter((q) => q.questionType !== "MCQ" || !q.correctOption).map((q) => ({
+                      questionId: q.id,
+                      obtainedMarks: marks[String(q.id)] === "" || marks[String(q.id)] == null
+                        ? (null as unknown as undefined)
+                        : Number(marks[String(q.id)]),
+                    })));
+                    setMsg("Graded");
+                    setGrading(null);
+                    await results.reload();
+                  } catch (e) {
+                    setErr(friendlyMessage(e));
+                  }
+                }}
+              />
+            </Card>
+          </QueryState>
+        ) : null}
       </Screen>
     </RequireAuth>
   );

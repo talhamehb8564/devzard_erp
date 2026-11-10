@@ -27,6 +27,7 @@ public class TenantResponse {
     private final String primaryColor;
     private final String accentColor;
     private final String secondaryColor;
+    private final String uiFont;
     private final String tagline;
     private final String website;
     private final TenantStatus status;
@@ -54,6 +55,7 @@ public class TenantResponse {
                 .primaryColor(tenant.getPrimaryColor())
                 .accentColor(tenant.getAccentColor())
                 .secondaryColor(tenant.getSecondaryColor())
+                .uiFont(tenant.getUiFont())
                 .tagline(tenant.getTagline())
                 .website(tenant.getWebsite())
                 .status(tenant.getStatus())

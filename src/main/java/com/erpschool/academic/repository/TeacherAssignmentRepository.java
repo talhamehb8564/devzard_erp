@@ -11,4 +11,7 @@ public interface TeacherAssignmentRepository extends JpaRepository<TeacherAssign
     List<TeacherAssignment> findByTenantId(UUID tenantId);
     boolean existsByTenantIdAndTeacherUserIdAndClassIdAndSectionIdAndSubjectId(
             UUID tenantId, UUID teacherUserId, UUID classId, UUID sectionId, UUID subjectId);
+
+    boolean existsByTenantIdAndTeacherUserIdAndClassIdAndSectionId(
+            UUID tenantId, UUID teacherUserId, UUID classId, UUID sectionId);
 }

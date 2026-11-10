@@ -87,6 +87,7 @@ export interface Tenant {
   primaryColor?: string;
   accentColor?: string;
   secondaryColor?: string;
+  uiFont?: string;
   tagline?: string;
   website?: string;
   status: TenantStatus;
@@ -277,6 +278,10 @@ export interface Homework {
   description?: string;
   dueDate: string;
   createdAt?: string;
+  submitted?: boolean;
+  submissionStatus?: string;
+  submittedCount?: number;
+  rosterCount?: number;
   attachments?: { id?: string; fileName?: string; fileUrl?: string; contentType?: string }[];
 }
 
@@ -459,6 +464,7 @@ export interface SchoolSettings {
   primaryColor?: string;
   accentColor?: string;
   secondaryColor?: string;
+  uiFont?: string;
   absentDeduction?: number;
   lateDeduction?: number;
   leaveDeduction?: number;

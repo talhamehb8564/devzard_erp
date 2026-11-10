@@ -31,6 +31,19 @@ export function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+export function isoWeekday(iso: string) {
+  const d = new Date(`${iso}T12:00:00`);
+  const n = d.getDay();
+  return n === 0 ? 7 : n;
+}
+
+export function monthEnd(d = today()) {
+  const dt = new Date(`${d.slice(0, 7)}-01T12:00:00`);
+  dt.setMonth(dt.getMonth() + 1);
+  dt.setDate(0);
+  return dt.toISOString().slice(0, 10);
+}
+
 export function monthStart(d = today()) {
   return `${d.slice(0, 7)}-01`;
 }

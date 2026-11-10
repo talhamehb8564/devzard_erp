@@ -1,5 +1,6 @@
 package com.erpschool.student;
 
+import com.erpschool.academic.repository.TeacherAssignmentRepository;
 import com.erpschool.common.exception.ForbiddenException;
 import com.erpschool.student.entity.Student;
 import com.erpschool.student.repository.ParentStudentRepository;
@@ -26,6 +27,8 @@ class StudentAccessServiceTest {
     private StudentRepository studentRepository;
     @Mock
     private ParentStudentRepository parentStudentRepository;
+    @Mock
+    private TeacherAssignmentRepository assignmentRepository;
     @InjectMocks
     private StudentAccessService studentAccessService;
 
@@ -59,6 +62,21 @@ class StudentAccessServiceTest {
         other.setTenantId(schoolA);
         other.setUserId(UUID.randomUUID());
         assertThatThrownBy(() -> studentAccessService.assertCanView(other))
+                .isInstanceOf(ForbiddenException.class);
+    }
+
+    @Test
+    void teacherCannotViewUnassignedClass() {
+        UUID teacherId = UUID.randomUUID();
+        TenantContext.set(schoolA, teacherId, "GVS-TCH-0001", UserRole.TEACHER);
+        Student student = new Student();
+        student.setId(UUID.randomUUID());
+        student.setTenantId(schoolA);
+        student.setClassId(UUID.randomUUID());
+        student.setSectionId(UUID.randomUUID());
+        when(assignmentRepository.existsByTenantIdAndTeacherUserIdAndClassIdAndSectionId(
+                schoolA, teacherId, student.getClassId(), student.getSectionId())).thenReturn(false);
+        assertThatThrownBy(() -> studentAccessService.assertCanView(student))
                 .isInstanceOf(ForbiddenException.class);
     }
 }

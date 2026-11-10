@@ -20,6 +20,7 @@ const BULK_REASONS = [...STATUS_REASONS, { code: "GRADUATED", label: "Graduated"
 export function StudentsPage() {
   const { user } = useSession();
   const canEnrol = user?.role === "SCHOOL_ADMIN";
+  const showCnic = user?.role === "SCHOOL_ADMIN" || user?.role === "PRINCIPAL" || user?.role === "ACCOUNT_OFFICER";
   const { classes, sections, className } = useLookups();
   const [classId, setClassId] = useState("");
   const [sectionId, setSectionId] = useState("");
@@ -99,12 +100,14 @@ export function StudentsPage() {
       </div>
       <QueryState status={list} label="students">
         <Table
-          headers={canEnrol ? ["Admission", "Name", "CNIC", "Class", "Roll", "Status", ""] : ["Admission", "Name", "CNIC", "Class", "Roll", "Status"]}
+          headers={canEnrol
+            ? ["Admission", "Name", ...(showCnic ? ["CNIC"] : []), "Class", "Roll", "Status", ""]
+            : ["Admission", "Name", ...(showCnic ? ["CNIC"] : []), "Class", "Roll", "Status"]}
           rows={rows.map((s) => {
             const cells = [
               s.admissionNumber,
               studentLabel(s),
-              s.cnic || "—",
+              ...(showCnic ? [s.cnic || "—"] : []),
               className(s.classId),
               s.rollNumber || "—",
               <span key={`st${s.id}`}>

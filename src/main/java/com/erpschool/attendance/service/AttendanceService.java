@@ -1,6 +1,8 @@
 package com.erpschool.attendance.service;
 
+import com.erpschool.academic.entity.Subject;
 import com.erpschool.academic.entity.TimetableSlot;
+import com.erpschool.academic.repository.TimetableSlotRepository;
 import com.erpschool.academic.service.AcademicService;
 import com.erpschool.attendance.entity.AttendanceStatus;
 import com.erpschool.attendance.entity.SalaryDeduction;
@@ -33,9 +35,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -50,6 +54,7 @@ public class AttendanceService {
     private final NotificationService notificationService;
     private final SchoolSettingsRepository settingsRepository;
     private final UserRepository userRepository;
+    private final TimetableSlotRepository timetableSlotRepository;
 
     public AttendanceService(StudentAttendanceRepository studentAttendanceRepository,
                              TeacherAttendanceRepository teacherAttendanceRepository,
@@ -59,7 +64,8 @@ public class AttendanceService {
                              StudentAccessService studentAccessService,
                              NotificationService notificationService,
                              SchoolSettingsRepository settingsRepository,
-                             UserRepository userRepository) {
+                             UserRepository userRepository,
+                             TimetableSlotRepository timetableSlotRepository) {
         this.studentAttendanceRepository = studentAttendanceRepository;
         this.teacherAttendanceRepository = teacherAttendanceRepository;
         this.salaryDeductionRepository = salaryDeductionRepository;
@@ -69,6 +75,7 @@ public class AttendanceService {
         this.notificationService = notificationService;
         this.settingsRepository = settingsRepository;
         this.userRepository = userRepository;
+        this.timetableSlotRepository = timetableSlotRepository;
     }
 
     @Transactional
@@ -135,10 +142,31 @@ public class AttendanceService {
     }
 
     @Transactional(readOnly = true)
-    public List<Student> lectureRoster(UUID slotId) {
+    public List<Map<String, Object>> lectureRoster(UUID slotId) {
         TimetableSlot slot = requireLectureAccess(slotId);
-        return studentRepository.findByTenantIdAndClassIdAndSectionIdAndStatus(
+        List<Student> rows = studentRepository.findByTenantIdAndClassIdAndSectionIdAndStatus(
                 slot.getTenantId(), slot.getClassId(), slot.getSectionId(), StudentStatus.ACTIVE);
+        Map<UUID, String> names = new HashMap<>();
+        List<UUID> userIds = rows.stream().map(Student::getUserId).filter(id -> id != null).toList();
+        if (!userIds.isEmpty()) {
+            for (User u : userRepository.findAllById(userIds)) {
+                names.put(u.getId(), u.getFullName());
+            }
+        }
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Student s : rows) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", s.getId());
+            m.put("userId", s.getUserId());
+            m.put("classId", s.getClassId());
+            m.put("sectionId", s.getSectionId());
+            m.put("admissionNumber", s.getAdmissionNumber());
+            m.put("rollNumber", s.getRollNumber());
+            m.put("status", s.getStatus());
+            m.put("fullName", s.getUserId() == null ? null : names.get(s.getUserId()));
+            out.add(m);
+        }
+        return out;
     }
 
     private TimetableSlot requireLectureAccess(UUID slotId) {
@@ -153,8 +181,14 @@ public class AttendanceService {
     @Transactional(readOnly = true)
     public List<StudentAttendance> studentHistory(UUID studentId, LocalDate from, LocalDate to) {
         Student student = studentAccessService.requireStudent(studentId);
-        return studentAttendanceRepository.findByTenantIdAndStudentIdAndAttendanceDateBetween(
+        List<StudentAttendance> rows = studentAttendanceRepository.findByTenantIdAndStudentIdAndAttendanceDateBetween(
                 student.getTenantId(), studentId, from, to);
+        if (TenantContext.getRole() == UserRole.TEACHER) {
+            Set<UUID> slots = teacherSlotIds(student.getTenantId(), TenantContext.getUserId(),
+                    student.getClassId(), student.getSectionId(), null);
+            rows = rows.stream().filter(r -> slots.contains(r.getTimetableSlotId())).toList();
+        }
+        return rows;
     }
 
     @Transactional(readOnly = true)
@@ -280,6 +314,100 @@ public class AttendanceService {
 
     private static BigDecimal nvl(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> monthForLecture(UUID slotId, LocalDate from, LocalDate to) {
+        TimetableSlot slot = requireLectureAccess(slotId);
+        UUID tenantId = slot.getTenantId();
+        LocalDate start = from != null ? from : LocalDate.now().withDayOfMonth(1);
+        LocalDate end = to != null ? to : start.withDayOfMonth(start.lengthOfMonth());
+        UUID teacherId = TenantContext.getRole() == UserRole.TEACHER
+                ? TenantContext.getUserId()
+                : slot.getTeacherUserId();
+        Set<UUID> slotIds = teacherSlotIds(tenantId, teacherId,
+                slot.getClassId(), slot.getSectionId(), slot.getSubjectId());
+        List<Student> students = studentRepository.findByTenantIdAndClassIdAndSectionIdAndStatus(
+                tenantId, slot.getClassId(), slot.getSectionId(), StudentStatus.ACTIVE);
+        Map<UUID, String> names = new HashMap<>();
+        List<UUID> userIds = students.stream().map(Student::getUserId).filter(id -> id != null).toList();
+        if (!userIds.isEmpty()) {
+            for (User u : userRepository.findAllById(userIds)) {
+                names.put(u.getId(), u.getFullName());
+            }
+        }
+        Map<UUID, String> subjectNames = new HashMap<>();
+        for (Subject s : academicService.subjects()) {
+            subjectNames.put(s.getId(), s.getName());
+        }
+        List<UUID> studentIds = students.stream().map(Student::getId).toList();
+        Map<UUID, long[]> att = new HashMap<>();
+        for (UUID id : studentIds) {
+            att.put(id, new long[5]);
+        }
+        if (!studentIds.isEmpty() && !slotIds.isEmpty()) {
+            for (StudentAttendanceRepository.CountRow row : studentAttendanceRepository
+                    .countGroupedForSlots(tenantId, studentIds, slotIds, start, end)) {
+                long[] bucket = att.computeIfAbsent(row.getStudentId(), k -> new long[5]);
+                bucket[0] += row.getTotal();
+                if (row.getStatus() == AttendanceStatus.PRESENT) bucket[1] += row.getTotal();
+                else if (row.getStatus() == AttendanceStatus.ABSENT) bucket[2] += row.getTotal();
+                else if (row.getStatus() == AttendanceStatus.LATE) bucket[3] += row.getTotal();
+                else if (row.getStatus() == AttendanceStatus.LEAVE) bucket[4] += row.getTotal();
+            }
+        }
+        int scheduled = 0;
+        List<TimetableSlot> counted = timetableSlotRepository
+                .findByTenantIdAndTeacherUserIdOrderByDayOfWeekAscStartTimeAsc(tenantId, teacherId)
+                .stream()
+                .filter(s -> slotIds.contains(s.getId()))
+                .toList();
+        for (LocalDate d = start; !d.isAfter(end); d = d.plusDays(1)) {
+            int dow = isoDay(d);
+            for (TimetableSlot s : counted) {
+                if (s.getDayOfWeek() == dow) scheduled++;
+            }
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Student student : students) {
+            long[] bucket = att.getOrDefault(student.getId(), new long[5]);
+            long held = bucket[0];
+            long present = bucket[1];
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("studentId", student.getId());
+            m.put("fullName", student.getUserId() == null ? null : names.get(student.getUserId()));
+            m.put("rollNumber", student.getRollNumber());
+            m.put("scheduled", scheduled);
+            m.put("held", held);
+            m.put("present", present);
+            m.put("absent", bucket[2]);
+            m.put("late", bucket[3]);
+            m.put("leave", bucket[4]);
+            m.put("attended", present + bucket[3]);
+            m.put("percent", held == 0 ? 0 : Math.round(present * 10000.0 / held) / 100.0);
+            rows.add(m);
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("from", start);
+        out.put("to", end);
+        out.put("subjectId", slot.getSubjectId());
+        out.put("subjectName", subjectNames.get(slot.getSubjectId()));
+        out.put("scheduled", scheduled);
+        out.put("students", rows);
+        return out;
+    }
+
+    private Set<UUID> teacherSlotIds(UUID tenantId, UUID teacherUserId, UUID classId, UUID sectionId, UUID subjectId) {
+        Set<UUID> ids = new HashSet<>();
+        if (teacherUserId == null) return ids;
+        for (TimetableSlot s : timetableSlotRepository
+                .findByTenantIdAndTeacherUserIdOrderByDayOfWeekAscStartTimeAsc(tenantId, teacherUserId)) {
+            if (classId != null && !classId.equals(s.getClassId())) continue;
+            if (sectionId != null && !sectionId.equals(s.getSectionId())) continue;
+            if (subjectId != null && !subjectId.equals(s.getSubjectId())) continue;
+            ids.add(s.getId());
+        }
+        return ids;
     }
 
     public static int isoDay(LocalDate date) {

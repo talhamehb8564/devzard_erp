@@ -24,8 +24,9 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
         scheme === "dark" ? dark : light,
         safeHex(tenant?.primaryColor || brand?.primaryColor || bakedBrand()?.primaryColor),
         safeHex(tenant?.accentColor || brand?.accentColor || bakedBrand()?.accentColor),
+        safeHex(tenant?.secondaryColor || brand?.secondaryColor || bakedBrand()?.secondaryColor),
       ),
-    [scheme, tenant?.primaryColor, tenant?.accentColor, brand?.primaryColor, brand?.accentColor],
+    [scheme, tenant?.primaryColor, tenant?.accentColor, tenant?.secondaryColor, brand?.primaryColor, brand?.accentColor, brand?.secondaryColor],
   );
   const value = useMemo<Appearance>(
     () => ({

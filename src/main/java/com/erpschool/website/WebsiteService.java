@@ -187,6 +187,7 @@ public class WebsiteService {
         m.put("primaryColor", tenant.getPrimaryColor());
         m.put("accentColor", tenant.getAccentColor());
         m.put("secondaryColor", tenant.getSecondaryColor());
+        m.put("uiFont", tenant.getUiFont());
         m.put("tagline", tenant.getTagline());
         m.put("aboutText", tenant.getAboutText());
         m.put("academicsText", tenant.getAcademicsText());

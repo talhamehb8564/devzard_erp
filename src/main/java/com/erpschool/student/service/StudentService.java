@@ -2,6 +2,8 @@ package com.erpschool.student.service;
 
 import com.erpschool.academic.entity.SchoolClass;
 import com.erpschool.academic.entity.Section;
+import com.erpschool.academic.entity.TeacherAssignment;
+import com.erpschool.academic.repository.TeacherAssignmentRepository;
 import com.erpschool.academic.service.AcademicService;
 import com.erpschool.audit.service.AuditService;
 import com.erpschool.common.dto.PageResponse;
@@ -61,6 +63,7 @@ public class StudentService {
     private final DocumentSequenceService documentSequenceService;
     private final AuditService auditService;
     private final StudentStatusEventRepository statusEventRepository;
+    private final TeacherAssignmentRepository assignmentRepository;
 
     private static final UUID NIL = UUID.fromString("00000000-0000-0000-0000-000000000001");
 
@@ -73,7 +76,8 @@ public class StudentService {
                           AcademicService academicService,
                           DocumentSequenceService documentSequenceService,
                           AuditService auditService,
-                          StudentStatusEventRepository statusEventRepository) {
+                          StudentStatusEventRepository statusEventRepository,
+                          TeacherAssignmentRepository assignmentRepository) {
         this.studentRepository = studentRepository;
         this.parentStudentRepository = parentStudentRepository;
         this.studentAccessService = studentAccessService;
@@ -84,6 +88,7 @@ public class StudentService {
         this.documentSequenceService = documentSequenceService;
         this.auditService = auditService;
         this.statusEventRepository = statusEventRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     @Transactional
@@ -213,15 +218,56 @@ public class StudentService {
         }
         boolean filterClasses = classId == null && sessionClassIds != null;
         Collection<UUID> classIds = filterClasses ? sessionClassIds : List.of(NIL);
+        boolean filterSections = false;
+        Collection<UUID> sectionIds = List.of(NIL);
+        boolean includeCnic = revealCnic();
+        if (TenantContext.getRole() == UserRole.TEACHER) {
+            List<TeacherAssignment> assigns = assignmentRepository
+                    .findByTenantIdAndTeacherUserId(tenantId, TenantContext.getUserId());
+            if (assigns.isEmpty()) {
+                return emptyListRows(Page.empty(pageable));
+            }
+            java.util.Set<UUID> assignedClasses = assigns.stream().map(TeacherAssignment::getClassId)
+                    .collect(Collectors.toSet());
+            java.util.Set<UUID> assignedSections = assigns.stream().map(TeacherAssignment::getSectionId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (classId != null && !assignedClasses.contains(classId)) {
+                return emptyListRows(Page.empty(pageable));
+            }
+            if (sectionId != null && !assignedSections.contains(sectionId)) {
+                return emptyListRows(Page.empty(pageable));
+            }
+            if (classId != null) {
+                assignedSections = assigns.stream()
+                        .filter(a -> classId.equals(a.getClassId()))
+                        .map(TeacherAssignment::getSectionId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+            }
+            if (sectionId != null) {
+                if (!assignedSections.contains(sectionId)) {
+                    return emptyListRows(Page.empty(pageable));
+                }
+                assignedSections = java.util.Set.of(sectionId);
+            }
+            if (assignedSections.isEmpty()) {
+                return emptyListRows(Page.empty(pageable));
+            }
+            filterSections = true;
+            sectionIds = assignedSections;
+        }
         String like = normalizeSearch(q);
         Page<Student> page = like == null
                 ? studentRepository.searchFiltered(
-                        tenantId, campusId, classId, sectionId, status, filterClasses, classIds, pageable)
+                        tenantId, campusId, classId, sectionId, status, filterClasses, classIds,
+                        filterSections, sectionIds, pageable)
                 : studentRepository.search(
-                        tenantId, campusId, classId, sectionId, status, filterClasses, classIds, like, pageable);
+                        tenantId, campusId, classId, sectionId, status, filterClasses, classIds,
+                        filterSections, sectionIds, includeCnic, like, pageable);
         Map<UUID, UserResponse> users = usersById(page.getContent());
         List<StudentDtos.ListRow> content = page.getContent().stream()
-                .map(s -> StudentDtos.listRow(s, users.get(s.getUserId())))
+                .map(s -> StudentDtos.listRow(s, users.get(s.getUserId()), includeCnic))
                 .toList();
         return PageResponse.<StudentDtos.ListRow>builder()
                 .content(content)
@@ -247,7 +293,40 @@ public class StudentService {
         }
         UUID campusId = CampusScope.restricts() ? CampusScope.current() : null;
         StudentStatus st = status == null ? StudentStatus.ACTIVE : status;
+        if (TenantContext.getRole() == UserRole.TEACHER) {
+            UUID teacherId = TenantContext.getUserId();
+            if (sectionId != null) {
+                if (!assignmentRepository.existsByTenantIdAndTeacherUserIdAndClassIdAndSectionId(
+                        tenantId, teacherId, classId, sectionId)) {
+                    throw new ForbiddenException("Teachers can only view students in their assigned classes");
+                }
+            } else {
+                java.util.Set<UUID> sections = assignmentRepository
+                        .findByTenantIdAndTeacherUserId(tenantId, teacherId).stream()
+                        .filter(a -> classId.equals(a.getClassId()))
+                        .map(TeacherAssignment::getSectionId)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+                if (sections.isEmpty()) {
+                    throw new ForbiddenException("Teachers can only view students in their assigned classes");
+                }
+                List<Student> scoped = studentRepository.findByTenantIdAndSectionIdInAndStatus(
+                        tenantId, sections, st);
+                if (campusId != null) {
+                    scoped = scoped.stream().filter(s -> campusId.equals(s.getCampusId())).toList();
+                }
+                scoped = scoped.stream().filter(s -> classId.equals(s.getClassId())).toList();
+                return rosterMaps(scoped);
+            }
+        }
         List<Student> rows = studentRepository.findRoster(tenantId, campusId, classId, sectionId, st);
+        if (rows.size() > 2000) {
+            rows = rows.subList(0, 2000);
+        }
+        return rosterMaps(rows);
+    }
+
+    private List<Map<String, Object>> rosterMaps(List<Student> rows) {
         if (rows.size() > 2000) {
             rows = rows.subList(0, 2000);
         }
@@ -296,7 +375,13 @@ public class StudentService {
     @Transactional(readOnly = true)
     public StudentDtos.Response get(UUID id) {
         Student s = studentAccessService.requireStudent(id);
-        return StudentDtos.from(s, loadUser(s.getUserId()));
+        return StudentDtos.from(s, loadUser(s.getUserId()), revealCnic());
+    }
+
+    private static boolean revealCnic() {
+        UserRole role = TenantContext.getRole();
+        return role == UserRole.ERP_OWNER || role == UserRole.SCHOOL_ADMIN
+                || role == UserRole.PRINCIPAL || role == UserRole.ACCOUNT_OFFICER;
     }
 
     @Transactional(readOnly = true)

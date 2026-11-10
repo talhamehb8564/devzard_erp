@@ -59,6 +59,9 @@ public class Tenant extends BaseEntity {
     @Column(name = "secondary_color", length = 16)
     private String secondaryColor;
 
+    @Column(name = "ui_font", length = 40)
+    private String uiFont;
+
     @Column(length = 300)
     private String tagline;
 

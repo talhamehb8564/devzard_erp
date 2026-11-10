@@ -706,7 +706,13 @@ public class OnlineExamService {
                 OnlineExamAnswer ans = answerRepository
                         .findByTenantIdAndAttemptIdAndQuestionId(exam.getTenantId(), attempt.getId(), qid)
                         .orElse(null);
-                if (ans == null) continue;
+                if (ans == null) {
+                    ans = new OnlineExamAnswer();
+                    ans.setTenantId(exam.getTenantId());
+                    ans.setAttemptId(attempt.getId());
+                    ans.setQuestionId(qid);
+                    ans.setCreatedBy(TenantContext.getUserId());
+                }
                 BigDecimal obtained = decimal(row.get("obtainedMarks"));
                 if (obtained == null) continue;
                 if (obtained.compareTo(BigDecimal.ZERO) < 0 || obtained.compareTo(q.getMarks()) > 0) {

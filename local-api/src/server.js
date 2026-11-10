@@ -19,13 +19,7 @@ const REFRESH_TTL = Number(process.env.JWT_REFRESH_TTL || 604800);
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || "0.0.0.0";
 
-const NEON = {
-  host: "ep-lively-rain-ay8mipsd-pooler.c-5.us-east-2.aws.neon.tech",
-  port: 5432,
-  user: process.env.DB_USERNAME || process.env.PGUSER || "neondb_owner",
-  password: process.env.DB_PASSWORD || process.env.PGPASSWORD || "",
-  database: "neondb",
-};
+const PG_URL = process.env.DATABASE_URL || process.env.DB_URL || process.env.SPRING_DATASOURCE_URL || "";
 
 const ROLE_CODE = {
   SCHOOL_ADMIN: "ADM",
@@ -146,14 +140,12 @@ function pageOf(rows, total, page, size) {
   };
 }
 
-async function tryNeon() {
+async function tryPostgres() {
+  if (!PG_URL) {
+    throw new Error("no postgres url");
+  }
   const client = new pg.Client({
-    host: NEON.host,
-    port: NEON.port,
-    user: NEON.user,
-    password: NEON.password,
-    database: NEON.database,
-    ssl: { rejectUnauthorized: false },
+    connectionString: PG_URL,
     connectionTimeoutMillis: 5000,
   });
   await client.connect();
@@ -175,8 +167,8 @@ async function tryNeon() {
       throw e;
     }
   };
-  dbKind = "neon";
-  console.log("Connected to Neon PostgreSQL");
+  dbKind = "postgres";
+  console.log("Connected to PostgreSQL");
 }
 
 async function usePglite() {
@@ -200,7 +192,7 @@ async function usePglite() {
     }
   };
   dbKind = "pglite";
-  console.log("Neon unreachable from this environment — using in-memory PGlite (same SQL schema)");
+  console.log("PostgreSQL not configured — using in-memory PGlite (same SQL schema)");
 }
 
 async function flywayMigrate() {
@@ -945,7 +937,7 @@ app.use((err, req, res, next) => {
 
 async function main() {
   try {
-    await tryNeon();
+    await tryPostgres();
   } catch (e) {
     console.warn("Neon connection failed:", e.message);
     await usePglite();

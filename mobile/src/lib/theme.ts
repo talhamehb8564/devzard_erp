@@ -30,11 +30,32 @@ export const dark = {
 
 export type Palette = typeof light;
 
-export function applyTenantColors(base: Palette, primary?: string, accent?: string): Palette {
-  if (!primary && !accent) return base;
+export function applyTenantColors(base: Palette, primary?: string, accent?: string, secondary?: string): Palette {
+  if (!primary && !accent && !secondary) return base;
+  const lightBg = secondary && !secondary.startsWith("#0") && !secondary.startsWith("#1")
+    ? secondary
+    : secondary
+      ? mixHex(secondary, base.bg, 0.18)
+      : base.bg;
   return {
     ...base,
+    bg: secondary ? lightBg : base.bg,
     brand: primary || base.brand,
     brand2: accent || primary || base.brand2,
+    brass: accent || primary || base.brass,
   };
+}
+
+function mixHex(hex: string, fallback: string, amount: number) {
+  const h = hex.replace("#", "");
+  if (h.length !== 6) return fallback;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const fr = parseInt(fallback.replace("#", "").slice(0, 2), 16) || 255;
+  const fg = parseInt(fallback.replace("#", "").slice(2, 4), 16) || 255;
+  const fb = parseInt(fallback.replace("#", "").slice(4, 6), 16) || 255;
+  const n = (c: number, f: number) => Math.round(c * amount + f * (1 - amount));
+  const to = (c: number) => c.toString(16).padStart(2, "0");
+  return `#${to(n(r, fr))}${to(n(g, fg))}${to(n(b, fb))}`;
 }

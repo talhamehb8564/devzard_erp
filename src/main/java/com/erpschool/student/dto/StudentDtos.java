@@ -5,6 +5,7 @@ import com.erpschool.student.entity.StudentStatus;
 import com.erpschool.student.entity.StudentStatusEvent;
 import com.erpschool.user.dto.CreateUserResponse;
 import com.erpschool.user.dto.UserResponse;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
@@ -113,10 +114,13 @@ public final class StudentDtos {
         private String inactiveReason;
         private String inactiveNote;
         private String fullName;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private String cnic;
         private String address;
         private String guardianName;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private String guardianPhone;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private UserResponse user;
     }
 
@@ -130,6 +134,7 @@ public final class StudentDtos {
         private UUID sectionId;
         private String admissionNumber;
         private String rollNumber;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private String cnic;
         private StudentStatus status;
         private String inactiveReason;
@@ -163,6 +168,10 @@ public final class StudentDtos {
     }
 
     public static Response from(Student s, UserResponse user) {
+        return from(s, user, true);
+    }
+
+    public static Response from(Student s, UserResponse user, boolean includeCnic) {
         return Response.builder()
                 .id(s.getId())
                 .userId(s.getUserId())
@@ -172,7 +181,7 @@ public final class StudentDtos {
                 .admissionNumber(s.getAdmissionNumber())
                 .registrationNumber(s.getRegistrationNumber())
                 .rollNumber(s.getRollNumber())
-                .cnic(s.getCnic())
+                .cnic(includeCnic ? s.getCnic() : null)
                 .photoUrl(s.getPhotoUrl())
                 .gender(s.getGender())
                 .dateOfBirth(s.getDateOfBirth())
@@ -183,12 +192,16 @@ public final class StudentDtos {
                 .fullName(user != null ? user.getFullName() : null)
                 .address(s.getAddress())
                 .guardianName(s.getGuardianName())
-                .guardianPhone(s.getGuardianPhone())
-                .user(user)
+                .guardianPhone(includeCnic ? s.getGuardianPhone() : null)
+                .user(includeCnic ? user : null)
                 .build();
     }
 
     public static ListRow listRow(Student s, UserResponse user) {
+        return listRow(s, user, true);
+    }
+
+    public static ListRow listRow(Student s, UserResponse user, boolean includeCnic) {
         return ListRow.builder()
                 .id(s.getId())
                 .userId(s.getUserId())
@@ -197,7 +210,7 @@ public final class StudentDtos {
                 .sectionId(s.getSectionId())
                 .admissionNumber(s.getAdmissionNumber())
                 .rollNumber(s.getRollNumber())
-                .cnic(s.getCnic())
+                .cnic(includeCnic ? s.getCnic() : null)
                 .status(s.getStatus())
                 .inactiveReason(s.getInactiveReason())
                 .inactiveNote(s.getInactiveNote())

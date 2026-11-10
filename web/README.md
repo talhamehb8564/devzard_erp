@@ -6,8 +6,8 @@ Production web client for the Spring Boot `/api/v1` backend.
 
 ```bash
 # terminal 1 — JDK 21 + Maven
-export SPRING_DATASOURCE_URL='jdbc:postgresql://ep-lively-rain-ay8mipsd-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require'
-export SPRING_DATASOURCE_USERNAME=neondb_owner
+export SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/erp_school'
+export SPRING_DATASOURCE_USERNAME=postgres
 export SPRING_DATASOURCE_PASSWORD='…'
 mvn spring-boot:run
 

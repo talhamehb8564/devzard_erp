@@ -28,6 +28,9 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
 
     long countByTenantId(UUID tenantId);
 
+    List<StudentAttendance> findByTenantIdAndStudentIdAndTimetableSlotIdInAndAttendanceDateBetween(
+            UUID tenantId, UUID studentId, Collection<UUID> slotIds, LocalDate from, LocalDate to);
+
     @Query("""
             select a.studentId as studentId, a.status as status, count(a.id) as total
             from StudentAttendance a
@@ -39,6 +42,22 @@ public interface StudentAttendanceRepository extends JpaRepository<StudentAttend
     List<CountRow> countGrouped(
             @Param("tenantId") UUID tenantId,
             @Param("studentIds") Collection<UUID> studentIds,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
+
+    @Query("""
+            select a.studentId as studentId, a.status as status, count(a.id) as total
+            from StudentAttendance a
+            where a.tenantId = :tenantId
+              and a.studentId in :studentIds
+              and a.timetableSlotId in :slotIds
+              and a.attendanceDate between :from and :to
+            group by a.studentId, a.status
+            """)
+    List<CountRow> countGroupedForSlots(
+            @Param("tenantId") UUID tenantId,
+            @Param("studentIds") Collection<UUID> studentIds,
+            @Param("slotIds") Collection<UUID> slotIds,
             @Param("from") LocalDate from,
             @Param("to") LocalDate to);
 }

@@ -253,6 +253,26 @@ export const attendanceApi = {
     api.post<StudentAttendance[]>(`${v1}/attendance/lectures/${slotId}`, body),
   lectureSheet: (slotId: string, date: string) =>
     api.get<StudentAttendance[]>(`${v1}/attendance/lectures/${slotId}?date=${date}`),
+  lectureMonth: (slotId: string, from: string, to: string) =>
+    api.get<{
+      from: string;
+      to: string;
+      subjectName?: string;
+      scheduled?: number;
+      students: {
+        studentId: string;
+        fullName?: string;
+        rollNumber?: string;
+        scheduled?: number;
+        held?: number;
+        present?: number;
+        absent?: number;
+        late?: number;
+        leave?: number;
+        attended?: number;
+        percent?: number;
+      }[];
+    }>(`${v1}/attendance/lectures/${slotId}/month?from=${from}&to=${to}`),
   mine: (from: string, to: string) =>
     api.get<StudentAttendance[]>(`${v1}/attendance/me?from=${from}&to=${to}`),
   studentHistory: (studentId: string, from: string, to: string) =>

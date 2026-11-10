@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { publicApi, setupApi, websiteApi } from "../api/services";
 import { useBranding, type PublicCampus, type PublicSchool } from "../lib/branding";
-import { applyBrand } from "../lib/theme";
+import { applyBrand, applyFont } from "../lib/theme";
 import {
   DEFAULT_ABOUT,
   DEFAULT_NOTICE_BODY,
@@ -81,6 +81,7 @@ export default function Welcome({ preview = false }: { preview?: boolean }) {
       setDraft({ school, campuses });
       setDraftCampusId(campuses[0]?.id || null);
       applyBrand(school?.primaryColor, school?.accentColor, school?.secondaryColor);
+      applyFont(school?.uiFont);
       if (school?.name) document.title = `${school.name} (preview)`;
     }).catch((e) => {
       if (!live) return;

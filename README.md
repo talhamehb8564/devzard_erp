@@ -52,24 +52,15 @@ Flyway on startup:
 - `src/main/resources/db/migration/V2__erp_modules.sql`
 - `src/main/resources/db/migration/V3__homework_submissions.sql`
 
-The app connects to **Neon PostgreSQL only**. There is no H2 / SQLite / PGlite fallback. Missing credentials or a non-Neon URL fail startup.
-
-JDBC URL (no password in git):
-
-```text
-jdbc:postgresql://ep-lively-rain-ay8mipsd-pooler.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&gssEncMode=disable
-```
+The app connects through environment variables. Do not hardcode a database host, username, or password. There is no H2 / SQLite fallback.
 
 ```bash
-export PGHOST=ep-lively-rain-ay8mipsd-pooler.c-5.us-east-2.aws.neon.tech
-export PGDATABASE=neondb
-export PGUSER=neondb_owner
-export PGPASSWORD='your-neon-password'
-export PGSSLMODE=require
-export DB_URL="jdbc:postgresql://${PGHOST}/${PGDATABASE}?sslmode=require&gssEncMode=disable"
-export DB_USERNAME="$PGUSER"
-export DB_PASSWORD="$PGPASSWORD"
+export SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/erp_school"
+export SPRING_DATASOURCE_USERNAME="postgres"
+export SPRING_DATASOURCE_PASSWORD="your-local-password"
 ```
+
+Managed Postgres providers should pass the same three variables (or `DB_URL` / `DB_USERNAME` / `DB_PASSWORD`). Put TLS flags on the JDBC URL when the provider requires them. Never commit credentials.
 
 ## Web application
 

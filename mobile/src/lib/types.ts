@@ -208,6 +208,10 @@ export interface Homework {
   className?: string;
   sectionName?: string;
   subjectName?: string;
+  submitted?: boolean;
+  submissionStatus?: string;
+  submittedCount?: number;
+  rosterCount?: number;
   attachments?: { id?: string; fileName?: string; fileUrl: string }[];
 }
 

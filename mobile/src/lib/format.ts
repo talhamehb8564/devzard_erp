@@ -76,6 +76,16 @@ export function monthStart(d = today()) {
   return `${d.slice(0, 7)}-01`;
 }
 
+export function monthEnd(d = today()) {
+  const dt = new Date(`${d.slice(0, 7)}-01T12:00:00`);
+  dt.setMonth(dt.getMonth() + 1);
+  dt.setDate(0);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, "0");
+  const day = String(dt.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function initials(name?: string) {
   if (!name) return "•";
   const parts = name.trim().split(/\s+/);

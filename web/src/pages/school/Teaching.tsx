@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { academicApi, attendanceApi, examApi, fileApi, homeworkApi, studentApi, userApi } from "../../api/services";
 import { ApiError } from "../../api/client";
 import { useLookups } from "../../lib/lookups";
-import { dayName, fmtDate, pretty, today } from "../../lib/format";
+import { dayName, fmtDate, isoWeekday, monthEnd, monthStart, pretty, today } from "../../lib/format";
 import { useSession } from "../../lib/session";
 import { useToast } from "../../lib/toast";
 import { Badge, Button, Empty, Field, FileLink, Form, Modal, QueryState, Table, studentLabel, useAsync } from "../../ui/kit";
@@ -66,44 +66,65 @@ function StaffAttendance() {
   }, [teacher, classId, sectionId]);
   const [slotId, setSlotId] = useState("");
   const [date, setDate] = useState(today());
+  const weekday = isoWeekday(date);
+  const daySlots = (slots.data || []).filter((s) => !s.dayOfWeek || s.dayOfWeek === weekday);
   const roster = useAsync(() => (slotId ? attendanceApi.roster(slotId) : Promise.resolve([])), [slotId]);
+  const sheet = useAsync(() => (slotId ? attendanceApi.lectureSheet(slotId, date) : Promise.resolve([])), [slotId, date]);
+  const month = useAsync(
+    () => (slotId ? attendanceApi.lectureMonth(slotId, monthStart(date), monthEnd(date)) : Promise.resolve(null)),
+    [slotId, date.slice(0, 7)],
+  );
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const toast = useToast();
 
+  useEffect(() => {
+    const next: Record<string, AttendanceStatus> = {};
+    for (const row of sheet.data || []) {
+      if (row.studentId && row.status) next[row.studentId] = row.status;
+    }
+    setMarks(next);
+  }, [sheet.data, slotId, date]);
+
+  useEffect(() => {
+    if (slotId && !daySlots.some((s) => s.id === slotId)) setSlotId("");
+  }, [date, slots.data]);
+
   return (
     <>
-      <div className="page-title"><div><h1>Lecture attendance</h1><p>Mark the roster for a timetable slot</p></div></div>
+      <div className="page-title"><div><h1>Lecture attendance</h1><p>Mark the roster for a timetable slot. Times must match the lecture weekday.</p></div></div>
       <div className="row" style={{ marginBottom: 12 }}>
         {!teacher ? (
           <>
-            <select className="search" value={classId} onChange={(e) => { setClassId(e.target.value); setSectionId(""); }}>
+            <select className="search" value={classId} onChange={(e) => { setClassId(e.target.value); setSectionId(""); setSlotId(""); }}>
               <option value="">Class</option>
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select className="search" value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
+            <select className="search" value={sectionId} onChange={(e) => { setSectionId(e.target.value); setSlotId(""); }}>
               <option value="">Section</option>
               {(sections[classId] || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </>
         ) : null}
+        <input className="search" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <QueryState status={slots} label="lectures">
           <select className="search" value={slotId} onChange={(e) => setSlotId(e.target.value)}>
-            <option value="">Select lecture</option>
-            {(slots.data || []).map((s) => (
-              <option key={s.id} value={s.id}>{dayName(s.dayOfWeek)} {s.startTime} · {s.subjectName || s.className || s.id.slice(0, 8)}</option>
+            <option value="">{daySlots.length ? `${dayName(weekday)} lectures` : `No ${dayName(weekday)} lectures`}</option>
+            {daySlots.map((s) => (
+              <option key={s.id} value={s.id}>{s.startTime} · {s.subjectName || s.className || s.id.slice(0, 8)}</option>
             ))}
           </select>
         </QueryState>
-        <input className="search" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         <Button
           kind="brass"
-          disabled={!slotId}
+          disabled={!slotId || roster.loading || sheet.loading}
           loadingText="Saving…"
           onClick={async () => {
             try {
               const items = (roster.data || []).map((st) => ({ studentId: st.id, status: marks[st.id] || "PRESENT" }));
               await attendanceApi.markLecture(slotId, { date, marks: items });
               toast("ok", "Attendance saved");
+              await sheet.reload();
+              await month.reload();
             } catch (e) {
               toast("err", e instanceof Error ? e.message : "Save failed");
             }
@@ -112,7 +133,7 @@ function StaffAttendance() {
           Save roll
         </Button>
       </div>
-      {!slotId ? <Empty title="Select a lecture to load the roster" /> : (
+      {!slotId ? <Empty title="Select a lecture that runs on this weekday" /> : (
       <QueryState status={roster} label="roster">
         <Table
           headers={["Student", "Status"]}
@@ -125,6 +146,25 @@ function StaffAttendance() {
         />
       </QueryState>
       )}
+      {slotId ? (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3>This month · {month.data?.subjectName || "Your lectures"}</h3>
+          <p className="hint">Present / lectures you marked for this subject. Percentage uses your assigned lectures, not the whole school.</p>
+          <QueryState status={month} label="monthly attendance">
+            <Table
+              headers={["Student", "Present", "Held", "Late", "Absent", "%"]}
+              rows={(month.data?.students || []).map((s) => [
+                s.fullName || s.rollNumber || "—",
+                String(s.present ?? 0),
+                String(s.held ?? 0),
+                String(s.late ?? 0),
+                String(s.absent ?? 0),
+                `${s.percent ?? 0}%`,
+              ])}
+            />
+          </QueryState>
+        </div>
+      ) : null}
       {(user?.role === "SCHOOL_ADMIN" || user?.role === "PRINCIPAL") ? <StaffAttendanceCard /> : null}
     </>
   );
@@ -194,9 +234,10 @@ function FamilyHomework() {
       {user?.role === "PARENT" ? <ChildSwitch childrenList={kids.data || []} /> : null}
       <QueryState status={list} label="homework">
         <Table
-          headers={["Title", "Class", "Subject", "Due", ""]}
+          headers={["Title", "Class", "Subject", "Due", "Submitted", ""]}
           rows={homeworkRows.map((h) => [
             h.title, h.className || "—", h.subjectName || "—", fmtDate(h.dueDate),
+            h.submitted ? (h.submissionStatus === "REVIEWED" ? "Reviewed" : "Submitted") : "Not submitted",
             <Button key={h.id} kind="ghost" onClick={() => setActive(h.id)}>Open</Button>,
           ])}
         />
@@ -260,9 +301,10 @@ function StaffHomework() {
       </div>
       <QueryState status={list} label="homework">
         <Table
-          headers={["Title", "Class", "Subject", "Due", ""]}
+          headers={["Title", "Class", "Subject", "Due", "Submitted", ""]}
           rows={(list.data || []).map((h) => [
             h.title, className(h.classId), subjectName(h.subjectId), fmtDate(h.dueDate),
+            `${h.submittedCount ?? 0}/${h.rosterCount ?? "—"}`,
             <Button key={h.id} kind="ghost" onClick={() => setActive(h.id)}>Open</Button>,
           ])}
         />
@@ -300,11 +342,16 @@ function StaffHomework() {
         <QueryState status={subs} label="submissions">
           <Table
             headers={["Student", "Status", "Notes", "File", ""]}
-            rows={(subs.data || []).map((s) => [
-              dir.nameOf(s.studentId), <Badge key={s.id} value={s.status} />, s.notes || "—",
-              <FileLink key={`f${s.id}`} href={s.fileUrl} />,
-              <Button key={`rv${s.id}`} kind="ghost" loadingText="Reviewing…" onClick={async () => { await homeworkApi.review(s.id, "Reviewed"); toast("ok", "Reviewed"); void subs.reload(); }}>Review</Button>,
-            ])}
+            rows={(dir.students.length ? dir.students : (subs.data || []).map((s) => ({ id: s.studentId, fullName: dir.nameOf(s.studentId) }))).map((st) => {
+              const s = (subs.data || []).find((row) => row.studentId === st.id);
+              return [
+                studentLabel(st),
+                s ? <Badge key={s.id} value={s.status} /> : "Not submitted",
+                s?.notes || "—",
+                s ? <FileLink key={`f${s.id}`} href={s.fileUrl} /> : "—",
+                s ? <Button key={`rv${s.id}`} kind="ghost" loadingText="Reviewing…" onClick={async () => { await homeworkApi.review(s.id, "Reviewed"); toast("ok", "Reviewed"); void subs.reload(); }}>Review</Button> : "",
+              ];
+            })}
           />
         </QueryState>
       </Modal>

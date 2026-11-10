@@ -7,31 +7,29 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FallbackDatabaseGuardTest {
 
     @Test
-    void normalizeJdbcUrlDisablesGssAndChannelBinding() {
-        String url = "jdbc:postgresql://ep-x.c-5.us-east-2.aws.neon.tech/neondb?sslmode=require&channelBinding=require";
+    void localPostgresUrlIsUnchangedExceptChannelBinding() {
+        String url = "jdbc:postgresql://localhost:5432/erp_school?channelBinding=require";
+        String next = FallbackDatabaseGuard.normalizeJdbcUrl(url);
+        assertThat(next).isEqualTo("jdbc:postgresql://localhost:5432/erp_school");
+        assertThat(next).doesNotContainIgnoringCase("channelBinding");
+        assertThat(next).doesNotContain("sslmode=require");
+    }
+
+    @Test
+    void poolerHostGetsTlsFlagsAndEndpointOption() {
+        String url = "jdbc:postgresql://ep-demo-pooler.example.com/school?sslmode=require&channelBinding=require";
         String next = FallbackDatabaseGuard.normalizeJdbcUrl(url);
         assertThat(next).doesNotContainIgnoringCase("channelBinding");
         assertThat(next).contains("sslmode=require");
         assertThat(next).contains("gssEncMode=disable");
         assertThat(next).contains("sslNegotiation=direct");
-        assertThat(next).contains("prepareThreshold=0");
-        assertThat(next).contains("preferQueryMode=simple");
-        assertThat(next).contains("options=endpoint%3Dep-x");
+        assertThat(next).contains("options=endpoint%3Dep-demo");
+        assertThat(next).doesNotContain("endpoint%3Dep-demo-pooler");
     }
 
     @Test
-    void poolerHostStripsPoolerSuffixFromEndpointOption() {
-        String url = "jdbc:postgresql://ep-lively-rain-ay8mipsd-pooler.c-5.us-east-2.aws.neon.tech/neondb";
-        String next = FallbackDatabaseGuard.normalizeJdbcUrl(url);
-        assertThat(next).contains("options=endpoint%3Dep-lively-rain-ay8mipsd");
-        assertThat(next).doesNotContain("endpoint%3Dep-lively-rain-ay8mipsd-pooler");
-        assertThat(next).contains("sslNegotiation=direct");
-    }
-
-    @Test
-    void normalizeJdbcUrlIsIdempotent() {
-        String url = "jdbc:postgresql://host.neon.tech/neondb?sslmode=require&gssEncMode=disable"
-                + "&sslNegotiation=direct&prepareThreshold=0&preferQueryMode=simple&tcpKeepAlive=true";
+    void normalizeJdbcUrlIsIdempotentForLocal() {
+        String url = "jdbc:postgresql://localhost:5432/erp_school";
         assertThat(FallbackDatabaseGuard.normalizeJdbcUrl(url)).isEqualTo(url);
     }
 }

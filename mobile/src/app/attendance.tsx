@@ -5,7 +5,7 @@ import { useAppearance } from "../lib/appearance";
 import { academicApi, attendanceApi, studentApi } from "../api/services";
 import { Badge, Btn, Card, Chip, Empty, QueryState, Screen, Title, friendlyMessage, useAsync } from "../ui/kit";
 import { DateField } from "../ui/dates";
-import { dayName, fmtTime, isoWeekday, today } from "../lib/format";
+import { dayName, fmtTime, isoWeekday, monthEnd, monthStart, today } from "../lib/format";
 import type { AttendanceStatus } from "../lib/types";
 import { RequireAuth } from "../ui/gate";
 
@@ -81,6 +81,11 @@ function StaffAtt() {
   const daySlots = slots.filter((s) => !s.dayOfWeek || s.dayOfWeek === weekday);
   const roster = useAsync(() => attendanceApi.roster(slotId), [slotId], Boolean(slotId));
   const sheet = useAsync(() => attendanceApi.lectureSheet(slotId, date), [slotId, date], Boolean(slotId));
+  const month = useAsync(
+    () => attendanceApi.lectureMonth(slotId, monthStart(date), monthEnd(date)),
+    [slotId, date.slice(0, 7)],
+    Boolean(slotId),
+  );
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
 
   useEffect(() => {
@@ -193,11 +198,34 @@ function StaffAtt() {
                 await attendanceApi.markLecture(slotId, { date, marks: body });
                 setMsg("Attendance saved.");
                 await sheet.reload();
+                await month.reload();
               } catch (e) {
                 setErr(friendlyMessage(e));
               }
             }}
           />
+        ) : null}
+        {slotId ? (
+          <QueryState
+            loading={month.loading}
+            error={month.error}
+            data={month.data}
+            onRetry={() => void month.reload()}
+            colors={colors}
+            empty={<Empty title="No monthly marks yet" colors={colors} />}
+          >
+            <Text style={{ color: colors.ink, fontWeight: "800", marginTop: 16, marginBottom: 8 }}>
+              This month · {String(month.data?.subjectName || "Your lectures")}
+            </Text>
+            {(month.data?.students || []).map((s) => (
+              <Card key={s.studentId} colors={colors}>
+                <Text style={{ color: colors.ink, fontWeight: "700" }}>{s.fullName || "Student"}</Text>
+                <Text style={{ color: colors.muted }}>
+                  {s.present ?? 0}/{s.held ?? 0} present · {s.percent ?? 0}% of your lectures
+                </Text>
+              </Card>
+            ))}
+          </QueryState>
         ) : null}
       </Screen>
     </RequireAuth>

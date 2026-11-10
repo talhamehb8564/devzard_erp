@@ -59,7 +59,7 @@ export default function Students() {
     <RequireAuth roles={["SCHOOL_ADMIN", "PRINCIPAL", "TEACHER", "ACCOUNT_OFFICER"]}>
       <Screen colors={colors} onRefresh={() => void list.reload()} refreshing={list.loading}>
         <Title title="Students" subtitle={`${list.data?.totalElements ?? 0} records · not deleted on inactivate`} colors={colors} />
-        <Field label="Search" colors={colors} value={q} onChangeText={(t) => { setQ(t); setPage(0); }} placeholder="Name, roll, CNIC" />
+        <Field label="Search" colors={colors} value={q} onChangeText={(t) => { setQ(t); setPage(0); }} placeholder={user?.role === "TEACHER" ? "Name or roll" : "Name, roll, CNIC"} />
         <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 6 }}>Class</Text>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
           <Chip label="All" selected={!classId} onPress={() => { setClassId(""); setSectionId(""); setPage(0); }} colors={colors} />

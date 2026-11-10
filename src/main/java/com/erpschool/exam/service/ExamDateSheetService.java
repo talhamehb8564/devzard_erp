@@ -111,7 +111,14 @@ public class ExamDateSheetService {
             sheets = headerRepository.findByTenantIdOrderByUpdatedAtDesc(tenantId);
         }
         Set<UUID> allowedClasses = visibleClassIds(tenantId);
+        Set<UUID> allowedSections = visibleSectionIds(tenantId);
         boolean manager = canManage();
+        if (sectionId != null && allowedSections != null && !allowedSections.contains(sectionId)) {
+            return List.of();
+        }
+        if (sectionId != null) {
+            allowedSections = Set.of(sectionId);
+        }
         List<ExamDateSheet> filtered = new ArrayList<>();
         for (ExamDateSheet sheet : sheets) {
             if (sessionId != null && !sessionId.equals(sheet.getExamSessionId())) continue;
@@ -135,7 +142,16 @@ public class ExamDateSheetService {
                     })
                     .toList();
         }
-        Map<UUID, List<ExamDateSheetEntry>> entriesBySheet = loadEntries(tenantId, filtered, sectionId);
+        Map<UUID, List<ExamDateSheetEntry>> entriesBySheet = loadEntries(tenantId, filtered, allowedSections);
+        if (!manager) {
+            List<ExamDateSheet> visible = new ArrayList<>();
+            for (ExamDateSheet sheet : filtered) {
+                if (!entriesBySheet.getOrDefault(sheet.getId(), List.of()).isEmpty()) {
+                    visible.add(sheet);
+                }
+            }
+            filtered = visible;
+        }
         return viewMany(filtered, sessions, entriesBySheet);
     }
 
@@ -146,6 +162,12 @@ public class ExamDateSheetService {
         UUID tenantId = sheet.getTenantId();
         List<ExamDateSheetEntry> rows = entryRepository
                 .findByTenantIdAndDateSheetIdOrderByExamDateAscStartTimeAsc(tenantId, sheet.getId());
+        Set<UUID> allowedSections = visibleSectionIds(tenantId);
+        if (allowedSections != null) {
+            rows = rows.stream()
+                    .filter(r -> r.getSectionId() == null || allowedSections.contains(r.getSectionId()))
+                    .toList();
+        }
         return viewOne(sheet, requireSession(sheet.getExamSessionId()), rows);
     }
 
@@ -395,7 +417,8 @@ public class ExamDateSheetService {
         return row;
     }
 
-    private Map<UUID, List<ExamDateSheetEntry>> loadEntries(UUID tenantId, List<ExamDateSheet> sheets, UUID sectionId) {
+    private Map<UUID, List<ExamDateSheetEntry>> loadEntries(UUID tenantId, List<ExamDateSheet> sheets,
+                                                           Set<UUID> sectionScope) {
         Map<UUID, List<ExamDateSheetEntry>> entriesBySheet = new HashMap<>();
         if (sheets.isEmpty()) {
             return entriesBySheet;
@@ -404,7 +427,7 @@ public class ExamDateSheetService {
         List<ExamDateSheetEntry> all = entryRepository
                 .findByTenantIdAndDateSheetIdInOrderByExamDateAscStartTimeAsc(tenantId, ids);
         for (ExamDateSheetEntry row : all) {
-            if (sectionId != null && row.getSectionId() != null && !sectionId.equals(row.getSectionId())) {
+            if (sectionScope != null && row.getSectionId() != null && !sectionScope.contains(row.getSectionId())) {
                 continue;
             }
             entriesBySheet.computeIfAbsent(row.getDateSheetId(), k -> new ArrayList<>()).add(row);
@@ -632,6 +655,42 @@ public class ExamDateSheetService {
             if (!childIds.isEmpty()) {
                 for (Student s : studentRepository.findAllById(childIds)) {
                     if (s.getClassId() != null) ids.add(s.getClassId());
+                }
+            }
+            return ids;
+        }
+        return Set.of();
+    }
+
+    /**
+     * null = every section (managers). Empty set = none visible.
+     */
+    private Set<UUID> visibleSectionIds(UUID tenantId) {
+        UserRole role = TenantContext.getRole();
+        if (role == UserRole.ERP_OWNER || role == UserRole.SCHOOL_ADMIN || role == UserRole.PRINCIPAL) {
+            return null;
+        }
+        Set<UUID> ids = new HashSet<>();
+        if (role == UserRole.TEACHER) {
+            for (TeacherAssignment a : assignmentRepository.findByTenantIdAndTeacherUserId(tenantId, TenantContext.getUserId())) {
+                if (a.getSectionId() != null) ids.add(a.getSectionId());
+            }
+            return ids;
+        }
+        if (role == UserRole.STUDENT) {
+            studentRepository.findByTenantIdAndUserId(tenantId, TenantContext.getUserId())
+                    .ifPresent(s -> {
+                        if (s.getSectionId() != null) ids.add(s.getSectionId());
+                    });
+            return ids;
+        }
+        if (role == UserRole.PARENT) {
+            List<UUID> childIds = parentStudentRepository
+                    .findByTenantIdAndParentUserId(tenantId, TenantContext.getUserId())
+                    .stream().map(ps -> ps.getStudentId()).toList();
+            if (!childIds.isEmpty()) {
+                for (Student s : studentRepository.findAllById(childIds)) {
+                    if (s.getSectionId() != null) ids.add(s.getSectionId());
                 }
             }
             return ids;

@@ -4,7 +4,7 @@ import { auditApi, notificationApi } from "../api/services";
 import { LookupsProvider, lookupsNeeded, useLookups } from "../lib/lookups";
 import { LOGIN_PORTALS } from "../lib/routes";
 import { useSession } from "../lib/session";
-import { applyBrand, applyTheme, readTheme, type Theme } from "../lib/theme";
+import { applyBrand, applyFont, applyTheme, readTheme, type Theme } from "../lib/theme";
 import { useBranding } from "../lib/branding";
 import { PATH_FEATURE, useFeatures } from "../lib/features";
 import { useSidebarWidth } from "../lib/sidebar";
@@ -56,9 +56,10 @@ export default function SchoolApp() {
     const accent = tenant?.accentColor || school?.accentColor;
     const secondary = tenant?.secondaryColor || school?.secondaryColor;
     if (primary || accent || secondary) applyBrand(primary, accent, secondary);
+    applyFont(tenant?.uiFont || school?.uiFont);
     const title = tenant?.name?.trim() || school?.name;
     if (title) document.title = title;
-  }, [tenant?.primaryColor, tenant?.accentColor, tenant?.secondaryColor, tenant?.name, school?.primaryColor, school?.accentColor, school?.secondaryColor, school?.name]);
+  }, [tenant?.primaryColor, tenant?.accentColor, tenant?.secondaryColor, tenant?.uiFont, tenant?.name, school?.primaryColor, school?.accentColor, school?.secondaryColor, school?.uiFont, school?.name]);
 
   if (!user) return <Navigate to={LOGIN_PORTALS} replace />;
   if (user.role === "ERP_OWNER") return <Navigate to="/admin/app" replace />;

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { publicApi } from "../api/services";
-import { applyBrand } from "./theme";
+import { applyBrand, applyFont } from "./theme";
 
 const CAMPUS_KEY = "atrium.publicCampus";
 
@@ -62,6 +62,7 @@ export interface PublicSchool {
   primaryColor?: string;
   accentColor?: string;
   secondaryColor?: string;
+  uiFont?: string;
   tagline?: string;
   aboutText?: string;
   academicsText?: string;
@@ -130,6 +131,7 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
       setCampuses(list);
       setMissing(!next);
       applyBrand(next?.primaryColor, next?.accentColor, next?.secondaryColor);
+      applyFont(next?.uiFont);
       if (next?.name) document.title = next.name;
       setCampusIdState((cur) => {
         const valid = cur && list.some((c) => c.id === cur) ? cur : list[0]?.id || null;

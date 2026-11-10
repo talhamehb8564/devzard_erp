@@ -162,6 +162,12 @@ export const attendanceApi = {
     api.post<StudentAttendance[]>(`${v1}/attendance/lectures/${slotId}`, body),
   lectureSheet: (slotId: string, date: string) =>
     api.get<StudentAttendance[]>(`${v1}/attendance/lectures/${slotId}?date=${date}`),
+  lectureMonth: (slotId: string, from: string, to: string) =>
+    api.get<{
+      subjectName?: string;
+      scheduled?: number;
+      students?: { studentId: string; fullName?: string; held?: number; present?: number; percent?: number; late?: number; absent?: number }[];
+    }>(`${v1}/attendance/lectures/${slotId}/month?from=${from}&to=${to}`),
   mine: (from: string, to: string) => api.get<StudentAttendance[]>(`${v1}/attendance/me?from=${from}&to=${to}`),
   studentHistory: (studentId: string, from: string, to: string) =>
     api.get<StudentAttendance[]>(`${v1}/attendance/students/${studentId}?from=${from}&to=${to}`),
@@ -240,6 +246,10 @@ export const onlineExamApi = {
   saveRecipients: (id: string, body: Record<string, unknown>) =>
     api.put<Record<string, unknown>>(`${v1}/online-exams/${id}/recipients`, body),
   results: (id: string) => api.get<Record<string, unknown>[]>(`${v1}/online-exams/${id}/results`),
+  attempt: (id: string, attemptId: string) =>
+    api.get<Record<string, unknown>>(`${v1}/online-exams/${id}/attempts/${attemptId}`),
+  grade: (id: string, attemptId: string, body: Record<string, unknown>[]) =>
+    api.post<Record<string, unknown>>(`${v1}/online-exams/${id}/attempts/${attemptId}/grade`, body),
   remove: (id: string) => api.del<unknown>(`${v1}/online-exams/${id}`),
 };
 

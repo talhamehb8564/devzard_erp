@@ -1,5 +1,7 @@
 package com.erpschool.report.service;
 
+import com.erpschool.academic.entity.TimetableSlot;
+import com.erpschool.academic.repository.TimetableSlotRepository;
 import com.erpschool.attendance.entity.AttendanceStatus;
 import com.erpschool.attendance.repository.StudentAttendanceRepository;
 import com.erpschool.attendance.repository.TeacherAttendanceRepository;
@@ -51,6 +53,7 @@ public class ReportService {
     private final ExamSessionRepository examSessionRepository;
     private final ParentStudentRepository parentStudentRepository;
     private final EntityManager entityManager;
+    private final TimetableSlotRepository timetableSlotRepository;
 
     public ReportService(StudentRepository studentRepository,
                          UserRepository userRepository,
@@ -62,7 +65,8 @@ public class ReportService {
                          TeacherAttendanceRepository teacherAttendanceRepository,
                          ExamSessionRepository examSessionRepository,
                          ParentStudentRepository parentStudentRepository,
-                         EntityManager entityManager) {
+                         EntityManager entityManager,
+                         TimetableSlotRepository timetableSlotRepository) {
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
         this.studentAttendanceRepository = studentAttendanceRepository;
@@ -74,6 +78,7 @@ public class ReportService {
         this.examSessionRepository = examSessionRepository;
         this.parentStudentRepository = parentStudentRepository;
         this.entityManager = entityManager;
+        this.timetableSlotRepository = timetableSlotRepository;
     }
 
     @Transactional(readOnly = true)
@@ -185,7 +190,18 @@ public class ReportService {
         for (UUID id : ids) {
             att.put(id, new long[4]);
         }
-        for (StudentAttendanceRepository.CountRow row : studentAttendanceRepository.countGrouped(tenantId, ids, from, to)) {
+        List<StudentAttendanceRepository.CountRow> counts;
+        if (role == UserRole.TEACHER) {
+            List<UUID> slotIds = timetableSlotRepository
+                    .findByTenantIdAndTeacherUserIdOrderByDayOfWeekAscStartTimeAsc(tenantId, TenantContext.getUserId())
+                    .stream().map(TimetableSlot::getId).toList();
+            counts = slotIds.isEmpty()
+                    ? List.of()
+                    : studentAttendanceRepository.countGroupedForSlots(tenantId, ids, slotIds, from, to);
+        } else {
+            counts = studentAttendanceRepository.countGrouped(tenantId, ids, from, to);
+        }
+        for (StudentAttendanceRepository.CountRow row : counts) {
             long[] bucket = att.computeIfAbsent(row.getStudentId(), k -> new long[4]);
             bucket[0] += row.getTotal();
             if (row.getStatus() == AttendanceStatus.PRESENT) {

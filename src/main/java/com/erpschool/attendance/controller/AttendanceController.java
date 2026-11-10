@@ -5,7 +5,6 @@ import com.erpschool.attendance.entity.StudentAttendance;
 import com.erpschool.attendance.entity.TeacherAttendance;
 import com.erpschool.attendance.service.AttendanceService;
 import com.erpschool.common.dto.ApiResponse;
-import com.erpschool.student.entity.Student;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
@@ -42,8 +41,17 @@ public class AttendanceController {
 
     @GetMapping("/lectures/{slotId}/roster")
     @PreAuthorize("hasAnyRole('ERP_OWNER','SCHOOL_ADMIN','PRINCIPAL','TEACHER')")
-    public ResponseEntity<ApiResponse<List<Student>>> roster(@PathVariable UUID slotId) {
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> roster(@PathVariable UUID slotId) {
         return ResponseEntity.ok(ApiResponse.ok(attendanceService.lectureRoster(slotId)));
+    }
+
+    @GetMapping("/lectures/{slotId}/month")
+    @PreAuthorize("hasAnyRole('ERP_OWNER','SCHOOL_ADMIN','PRINCIPAL','TEACHER')")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> lectureMonth(
+            @PathVariable UUID slotId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return ResponseEntity.ok(ApiResponse.ok(attendanceService.monthForLecture(slotId, from, to)));
     }
 
     @PostMapping("/lectures/{slotId}")

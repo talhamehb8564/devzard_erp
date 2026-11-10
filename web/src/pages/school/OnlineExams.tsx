@@ -781,51 +781,55 @@ function StaffExam({ examId }: { examId: string }) {
             rows={(attempts.data || []).map((a) => {
               const id = str(a.id);
               const excluded = Boolean(a.excluded);
-              const canGrade = Boolean(id) && !excluded;
+              const status = str(a.status);
+              const canReview = Boolean(id) && !excluded && status !== "NOT_STARTED" && status !== "IN_PROGRESS";
               return [
                 str(a.studentName),
                 str(a.rollNumber, "—"),
-                <Badge key={str(a.studentId)} value={excluded ? `EXCLUDED ${statusReasonLabel(str(a.excludeReason), null)}` : str(a.status)} />,
+                <Badge key={str(a.studentId)} value={excluded ? `EXCLUDED ${statusReasonLabel(str(a.excludeReason), null)}` : status} />,
                 excluded ? "—" : (a.obtainedMarks == null ? "—" : `${str(a.obtainedMarks)} / ${str(a.totalMarks)}`),
                 excluded ? "—" : str(a.grade, "—"),
-                canGrade ? <Button key={`${id}-g`} kind="ghost" onClick={() => setGrading(id)}>Grade</Button> : "",
+                canReview ? <Button key={`${id}-g`} kind="ghost" onClick={() => setGrading(id)}>Review & grade</Button> : "",
               ];
             })}
           />
         </QueryState>
-        {grading && detail.data ? (
-          <Form busyLabel="Saving marks…" onSubmit={async () => {
-            const qs = (detail.data?.questions as QuestionDraft[]) || [];
-            await onlineExamApi.grade(examId, grading, qs.filter((q) => q.questionType !== "MCQ" || !q.correctOption).map((q) => ({
-              questionId: q.id,
-              obtainedMarks: q.obtainedMarks === "" || q.obtainedMarks == null ? null : Number(q.obtainedMarks),
-            })));
-            toast("ok", "Graded");
-            setGrading(null);
-            await attempts.reload();
-          }}>
-            <h3>Grade attempt</h3>
-            {((detail.data.questions as QuestionDraft[]) || []).map((q, i) => (
-              <div key={q.id || i} className="exam-q">
-                <p className="kicker">{q.questionType} · {q.marks} marks · {q.gradingStatus || (q.autoGraded ? "AUTO" : "PENDING")}</p>
-                <strong>{q.prompt}</strong>
-                <p>{q.questionType === "MCQ" ? `Choice ${q.optionChoice || "—"} (key ${q.correctOption || "—"})` : (q.textAnswer || "—")}</p>
-                {q.questionType !== "MCQ" || !q.correctOption ? (
-                  <Field label="Obtained">
-                    <input
-                      type="number"
-                      defaultValue={q.obtainedMarks == null ? "" : str(q.obtainedMarks)}
-                      onChange={(e) => { q.obtainedMarks = e.target.value; }}
-                    />
-                  </Field>
-                ) : <p className="hint">MCQ is auto-graded from the answer key.</p>}
+        {grading ? (
+          <QueryState status={detail} label="submitted paper">
+            <Form busyLabel="Saving marks…" onSubmit={async () => {
+              const qs = (detail.data?.questions as QuestionDraft[]) || [];
+              await onlineExamApi.grade(examId, grading, qs.filter((q) => q.questionType !== "MCQ" || !q.correctOption).map((q) => ({
+                questionId: q.id,
+                obtainedMarks: q.obtainedMarks === "" || q.obtainedMarks == null ? null : Number(q.obtainedMarks),
+              })));
+              toast("ok", "Graded");
+              setGrading(null);
+              await attempts.reload();
+            }}>
+              <h3>Review submitted answers</h3>
+              <p className="hint">Papers without an answer key still need a teacher mark. Unanswered questions stay blank until you enter marks. Saving does not publish results.</p>
+              {((detail.data?.questions as QuestionDraft[]) || []).map((q, i) => (
+                <div key={q.id || i} className="exam-q">
+                  <p className="kicker">{q.questionType} · {q.marks} marks · {q.gradingStatus || (q.autoGraded ? "AUTO" : "PENDING")}</p>
+                  <strong>{q.prompt}</strong>
+                  <p>{q.questionType === "MCQ" ? `Choice ${q.optionChoice || "—"} (key ${q.correctOption || "none"})` : (q.textAnswer || "—")}</p>
+                  {q.questionType !== "MCQ" || !q.correctOption ? (
+                    <Field label="Obtained">
+                      <input
+                        type="number"
+                        defaultValue={q.obtainedMarks == null ? "" : str(q.obtainedMarks)}
+                        onChange={(e) => { q.obtainedMarks = e.target.value; }}
+                      />
+                    </Field>
+                  ) : <p className="hint">MCQ is auto-graded from the answer key.</p>}
+                </div>
+              ))}
+              <div className="row">
+                <Button type="submit" kind="brass" loadingText="Saving marks…">Save grades</Button>
+                <Button kind="ghost" onClick={() => setGrading(null)}>Close</Button>
               </div>
-            ))}
-            <div className="row">
-              <Button type="submit" kind="brass" loadingText="Saving marks…">Save grades</Button>
-              <Button kind="ghost" onClick={() => setGrading(null)}>Close</Button>
-            </div>
-          </Form>
+            </Form>
+          </QueryState>
         ) : null}
       </div>
     </>

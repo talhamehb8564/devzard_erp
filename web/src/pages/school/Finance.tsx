@@ -514,6 +514,13 @@ export function SettingsPage() {
                 <Field label="Primary color"><input type="color" value={current.primaryColor || "#1f3a5f"} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })} /></Field>
                 <Field label="Accent color"><input type="color" value={current.accentColor || "#c4a574"} onChange={(e) => setForm({ ...form, accentColor: e.target.value })} /></Field>
                 <Field label="Secondary color"><input type="color" value={current.secondaryColor || "#1f4d43"} onChange={(e) => setForm({ ...form, secondaryColor: e.target.value })} /></Field>
+                <Field label="Portal font">
+                  <select value={current.uiFont || "Outfit"} onChange={(e) => setForm({ ...form, uiFont: e.target.value })}>
+                    {["Outfit", "Fraunces", "Source Sans 3", "Literata", "Atkinson Hyperlegible", "Merriweather"].map((f) => (
+                      <option key={f} value={f}>{f}</option>
+                    ))}
+                  </select>
+                </Field>
               </>
             ) : null}
             <Field label="Absent deduction"><input type="number" value={current.absentDeduction ?? 0} onChange={(e) => setForm({ ...form, absentDeduction: Number(e.target.value) })} /></Field>

@@ -54,6 +54,7 @@ function FamilyHomework() {
           <Card key={h.id} colors={colors}>
             <Text style={{ color: colors.ink, fontWeight: "800" }}>{h.title}</Text>
             <Text style={{ color: colors.muted }}>{h.className} · {h.subjectName} · due {fmtDate(h.dueDate)}</Text>
+            <Text style={{ color: colors.muted, marginTop: 4 }}>{h.submitted ? (h.submissionStatus === "REVIEWED" ? "Reviewed" : "Submitted") : "Not submitted"}</Text>
             {h.description ? <Text style={{ color: colors.muted, marginTop: 6 }}>{h.description}</Text> : null}
             <AttachmentRow urls={(h.attachments || []).filter((a) => a.fileUrl)} colors={colors} />
             <Btn label={active === h.id ? "Cancel submit" : "Submit work"} kind="ghost" colors={colors} onPress={() => { setActive(active === h.id ? null : h.id); setErr(""); }} />
@@ -252,6 +253,7 @@ function StaffHomework() {
           <Card key={h.id} colors={colors}>
             <Text style={{ color: colors.ink, fontWeight: "800" }}>{h.title}</Text>
             <Text style={{ color: colors.muted }}>{h.className} · {h.subjectName} · due {fmtDate(h.dueDate)}</Text>
+            <Text style={{ color: colors.muted, marginTop: 4 }}>{h.submittedCount ?? 0}/{h.rosterCount ?? "—"} submitted</Text>
             {h.description ? <Text style={{ color: colors.muted, marginTop: 6 }}>{h.description}</Text> : null}
             <AttachmentRow urls={(h.attachments || []).filter((a) => a.fileUrl)} colors={colors} />
             <Btn

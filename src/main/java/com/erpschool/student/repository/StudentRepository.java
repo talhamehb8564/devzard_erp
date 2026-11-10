@@ -158,6 +158,7 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
               and (:sectionId is null or s.sectionId = :sectionId)
               and (:status is null or s.status = :status)
               and (:filterClasses = false or s.classId in :classIds)
+              and (:filterSections = false or s.sectionId in :sectionIds)
             """)
     Page<Student> searchFiltered(
             @Param("tenantId") UUID tenantId,
@@ -167,6 +168,8 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
             @Param("status") StudentStatus status,
             @Param("filterClasses") boolean filterClasses,
             @Param("classIds") Collection<UUID> classIds,
+            @Param("filterSections") boolean filterSections,
+            @Param("sectionIds") Collection<UUID> sectionIds,
             Pageable pageable);
 
     @Query("""
@@ -177,10 +180,11 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
               and (:sectionId is null or s.sectionId = :sectionId)
               and (:status is null or s.status = :status)
               and (:filterClasses = false or s.classId in :classIds)
+              and (:filterSections = false or s.sectionId in :sectionIds)
               and (
                     lower(coalesce(s.admissionNumber, '')) like :like
                  or lower(coalesce(s.rollNumber, '')) like :like
-                 or lower(coalesce(s.cnic, '')) like :like
+                 or (:searchCnic = true and lower(coalesce(s.cnic, '')) like :like)
                  or exists (
                       select 1 from User u
                       where u.id = s.userId
@@ -201,6 +205,9 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
             @Param("status") StudentStatus status,
             @Param("filterClasses") boolean filterClasses,
             @Param("classIds") Collection<UUID> classIds,
+            @Param("filterSections") boolean filterSections,
+            @Param("sectionIds") Collection<UUID> sectionIds,
+            @Param("searchCnic") boolean searchCnic,
             @Param("like") String like,
             Pageable pageable);
 }

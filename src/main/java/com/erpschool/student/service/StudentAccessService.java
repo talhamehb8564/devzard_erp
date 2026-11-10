@@ -1,5 +1,6 @@
 package com.erpschool.student.service;
 
+import com.erpschool.academic.repository.TeacherAssignmentRepository;
 import com.erpschool.common.exception.ForbiddenException;
 import com.erpschool.common.exception.ResourceNotFoundException;
 import com.erpschool.common.util.TenantGuard;
@@ -17,11 +18,14 @@ public class StudentAccessService {
 
     private final StudentRepository studentRepository;
     private final ParentStudentRepository parentStudentRepository;
+    private final TeacherAssignmentRepository assignmentRepository;
 
     public StudentAccessService(StudentRepository studentRepository,
-                                ParentStudentRepository parentStudentRepository) {
+                                ParentStudentRepository parentStudentRepository,
+                                TeacherAssignmentRepository assignmentRepository) {
         this.studentRepository = studentRepository;
         this.parentStudentRepository = parentStudentRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     public Student requireStudent(UUID id) {
@@ -42,6 +46,12 @@ public class StudentAccessService {
             if (!parentStudentRepository.existsByTenantIdAndParentUserIdAndStudentId(
                     student.getTenantId(), TenantContext.getUserId(), student.getId())) {
                 throw new ForbiddenException("Parents can only access linked children");
+            }
+        } else if (role == UserRole.TEACHER) {
+            if (student.getClassId() == null || student.getSectionId() == null
+                    || !assignmentRepository.existsByTenantIdAndTeacherUserIdAndClassIdAndSectionId(
+                    student.getTenantId(), TenantContext.getUserId(), student.getClassId(), student.getSectionId())) {
+                throw new ForbiddenException("Teachers can only access students in their assigned classes");
             }
         }
     }
